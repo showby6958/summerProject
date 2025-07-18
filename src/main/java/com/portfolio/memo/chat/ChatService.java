@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 // ChatController 로 부터 ChatMessage DTO를 받아서 Chat 엔티티로 변환 후
@@ -24,5 +27,19 @@ public class ChatService {
                 .build();
 
         chatRepository.save(chat);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatMessage> getMessageHistory(String currentUserEmail, String otherUserEmail) {
+        List<Chat> chats = chatRepository.findBySenderAndReceiverOrReceiverAndSenderOrderByTimestampAsc(currentUserEmail, otherUserEmail, otherUserEmail, currentUserEmail);
+
+        return chats.stream().map(chat -> {
+            ChatMessage msg = new ChatMessage();
+            msg.setSender(chat.getSender());
+            msg.setReceiver(chat.getReceiver());
+            msg.setContent(chat.getContent());
+            msg.setTimestamp(chat.getTimestamp());
+            return msg;
+        }).collect(Collectors.toList());
     }
 }

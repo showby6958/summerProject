@@ -2,12 +2,18 @@ package com.portfolio.memo.chat;
 
 import com.portfolio.memo.chat.dto.ChatMessage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -34,4 +40,14 @@ public class ChatController {
         messagingTemplate.convertAndSendToUser(message.getReceiver(), "/queue/messages", message);
     }
 
+    @GetMapping("/api/chat/history/{otherUserEmail}")
+    public ResponseEntity<List<ChatMessage>> getMessageHistory(
+        @PathVariable String otherUserEmail,
+        @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        String currentUserEmail = userDetails.getUsername();
+        List<ChatMessage> history = chatService.getMessageHistory(currentUserEmail, otherUserEmail);
+
+        return ResponseEntity.ok(history);
+    }
 }

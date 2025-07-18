@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Test Page</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 15px; margin-right: 10px; }
+        #log { margin-top: 20px; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #f9f9f9; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h1>WebSocket (STOMP) Test</h1>
+    <p>
+        <strong>테스트 방법:</strong><br>
+        1. 아래 "JWT Token" 필드에 유효한 토큰을 입력하세요. (개발자 도구 > localStorage에서 복사)<br>
+        2. "Connect" 버튼을 눌러 웹소켓 서버에 연결합니다.<br>
+        3. "Receiver Email"에 메시지를 받을 사용자의 이메일을 입력합니다.<br>
+        4. "Message"에 보낼 메시지를 입력하고 "Send" 버튼을 누릅니다.<br>
+        5. "Log" 영역에서 연결 상태 및 수신된 메시지를 확인합니다.<br>
+        6. 테스트가 끝나면 "Disconnect" 버튼을 누릅니다.
+    </p>
+
+    <div class="form-group">
+        <label for="token">JWT Token</label>
+        <input type="text" id="token" placeholder="로그인 후 발급받은 JWT 토큰을 여기에 붙여넣으세요.">
+    </div>
+
+    <div>
+        <button id="connect" onclick="connect()">Connect</button>
+        <button id="disconnect" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+
+    <div class="form-group" style="margin-top: 20px;">
+        <label for="receiver">Receiver Email</label>
+        <input type="text" id="receiver" placeholder="메시지를 받을 상대방 이메일">
+    </div>
+    <div class="form-group">
+        <label for="message">Message</label>
+        <input type="text" id="message" placeholder="전송할 메시지">
+    </div>
+    <button id="send" onclick="sendMessage()">Send</button>
+
+    <h2>Log</h2>
+    <div id="log"></div>
+</div>
+
+<script>
+    let stompClient = null;
+    let currentUserEmail = null;
+
+    function setConnected(connected) {
+        document.getElementById("connect").disabled = connected;
+        document.getElementById("disconnect").disabled = !connected;
+        document.getElementById("send").disabled = !connected;
+    }
+
+    function log(message) {
+        const logDiv = document.getElementById("log");
+        const p = document.createElement("p");
+        p.appendChild(document.createTextNode(message));
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function connect() {
+        const jwtToken = document.getElementById("token").value.trim();
+        if (!jwtToken) {
+            alert("JWT Token을 입력해주세요.");
+            return;
+        }
+
+        try {
+            currentUserEmail = JSON.parse(atob(jwtToken.split('.')[1])).sub;
+            log(`Connecting as user: ${currentUserEmail}`);
+        } catch (e) {
+            log("Error: Invalid JWT Token.");
+            return;
+        }
+
+        const socket = new SockJS('/ws-chat');
+        stompClient = Stomp.over(socket);
+
+        const headers = {
+            'Authorization': `Bearer ${jwtToken}`
+        };
+
+        stompClient.connect(headers, (frame) => {
+            setConnected(true);
+            log('Connected: ' + frame);
+
+            // 본인에게 오는 메시지를 구독
+            stompClient.subscribe(`/user/${currentUserEmail}/queue/messages`, (message) => {
+                const msg = JSON.parse(message.body);
+                log(`Received Message: ${JSON.stringify(msg)}`);
+            });
+        }, (error) => {
+            log('Connection error: ' + error);
+            setConnected(false);
+        });
+    }
+
+    function disconnect() {
+        if (stompClient !== null) {
+            stompClient.disconnect(() => {
+                setConnected(false);
+                log("Disconnected.");
+                currentUserEmail = null;
+            });
+        }
+    }
+
+    function sendMessage() {
+        const receiver = document.getElementById("receiver").value.trim();
+        const content = document.getElementById("message").value.trim();
+
+        if (!receiver || !content) {
+            alert("Receiver Email과 Message를 모두 입력해주세요.");
+            return;
+        }
+
+        const chatMessage = {
+            receiver: receiver,
+            content: content
+        };
+
+        stompClient.send("/app/chat/message", {}, JSON.stringify(chatMessage));
+        log(`Sent message to ${receiver}: ${content}`);
+    }
+
+    window.onload = () => setConnected(false);
+
+</script>
+</body>
+</html>
