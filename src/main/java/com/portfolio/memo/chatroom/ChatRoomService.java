@@ -2,10 +2,7 @@ package com.portfolio.memo.chatroom;
 
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
-import com.portfolio.memo.chatroom.dto.ChatRoomInfo;
-import com.portfolio.memo.chatroom.dto.ChatRoomRequest;
-import com.portfolio.memo.chatroom.dto.ChatRoomResponse;
-import com.portfolio.memo.chatroom.dto.ParticipantDto;
+import com.portfolio.memo.chatroom.dto.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +18,7 @@ public class ChatRoomService {
 
     private final ChatRoomRepository chatRoomRepository;
     private final UserRepository userRepository;
+    private final ChatMessageRepository chatMessageRepository;
 
     // 새 채팅방 생성
     @Transactional
@@ -63,5 +61,31 @@ public class ChatRoomService {
                 .name(chatRoom.getName())
                 .participantDto(participantDtos)
                 .build();
+    }
+
+    // 전송한 메시지를 저장하는 api
+    @Transactional
+    public ChatRoomMessage saveMessage(Long roomId, String senderEmail, String message) {
+        User sender = userRepository.findByEmail(senderEmail)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + senderEmail));
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다: " + roomId));
+
+        ChatRoomMessage chatMessage = ChatRoomMessage.builder()
+                .chatRoom(chatRoom)
+                .sender(sender)
+                .message(message)
+                .build();
+
+        return chatMessageRepository.save(chatMessage);
+    }
+
+
+    // 채팅 기록(생성시간을 오름차순으로 조회)을 불러오는 api service
+    public List<ChatMessageHistoryDto> getChatHistory(Long roomId) {
+        List<ChatRoomMessage> messages = chatMessageRepository.findByChatRoom_IdOrderBySentAtAsc(roomId);
+        return messages.stream()
+                .map(ChatMessageHistoryDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }

@@ -45,7 +45,8 @@ public class SecurityConfig {
                                 "/test.html",
                                 "/chat.html",
                                 "/login.html",
-                                "/register.html"
+                                "/register.html",
+                                "/chatroom.html"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/ws-chat/**").permitAll()
