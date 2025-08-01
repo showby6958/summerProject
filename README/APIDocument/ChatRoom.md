@@ -21,7 +21,7 @@
 
 
 
-# WebSocket (ChatController & WebSocketConfig)
+# WebSocket (StompHandler & WebSocketConfig)
 실시간으로 메시지를 주고받는 부분. STOMP 프로토콜 사용(pub/sub 모델)
 
 ### 메시지 발행 (Publish)
