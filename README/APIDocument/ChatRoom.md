@@ -1,22 +1,23 @@
-# 채팅방 API (ChatController)
+# 채팅방 API (ChatRoomController)
 채팅방 관리(생성, 조회, 초대 등)은 REST API로, 실시간 메시지 송수신은 WebSocket으로 처리
 
-## 채티방 상태 관리 API
+## 채팅방 API 목록
 ### 채팅방 생성: POST /api/chat/rooms [이동](#채팅방-생성)
-- Request: ChatRoomRequest (e.g., { "name": "프로젝트 A팀" })
-- Response: ChatRoomResponse (생성된 채팅방 정보)
+- 사용자로부터 입력받은 채팅방의 이름으로 채팅방 생성
 
 ### 사용자가 참여한 채팅방 목록 조회 GET /api/chat/rooms [이동](#사용자가-참여한-채팅방-목록-조회)
 - 인증된 사용자의 정보를 기반으로 참여하고 있는 모든 채팅방 목록을 반환
-### 특정 채팅방 정보 조회 GET /api/chat/rooms/{roomId}
+
+### 특정 채팅방 정보 조회 GET /api/chat/rooms/{roomId} **이거 아직 없는 기능임(나중에 만드셈)**
 - 채팅방 이름, 참여자 목록 등을 반환
-### 채팅방에 사용자 초대 POST /api/chat/rooms/{roomId}/user
-- Request: { "userId": "초대할 사용자 ID" }
 
-### 채팅방 나가기: DELETE /api/chat/rooms/{roomId}/users/me
+### 채팅방에 사용자 초대 POST /api/chat/rooms/{roomId}/invite [이동](#채팅방에-사용자-초대)
+- 초대할 유저의 이메일로 채팅방 초대
 
-### 채팅방 메시지 내역 조회: GET /api/chat/rooms/{roomId}/messages
-- 과거 메시지를 페이징(Paging)해서 불러옴 (e.g., ?page=0&size=20)
+### 채팅방 나가기: DELETE /api/chat/rooms/{roomId}/users/me **이거 아직 없는 기능임(나중에 만드셈)**
+
+### 채팅방 메시지 내역 조회: GET /api/chat/rooms/{roomId}/messages [이동](#채팅방-메시지-내역-조회)
+- 과거 메시지를 작성 시간순 정렬하여 가져옴
 
 
 
@@ -60,14 +61,55 @@
 
 # API 세부사항
 ### 채팅방 생성
+#### POST http://localhost:8080/api/chat/rooms
+사용자가 새로운 채팅방을 생성합니다.
+- 채팅방 이름('name'): 채팅방에 부여되는 이름
 
-나중에 추가 ㄱㄱ
+**요청 형식**<br/>
+Headers
+```
+Content-Type: application/json
+Authorization: Bear eyHjQwxJcq...
+```
+
+Body
+```
+{
+    "name": "프로젝트 회의방"
+}
+```
+
+**반환 형식**<br/>
+```
+{
+    "roomId": 8,
+    "name": "api 문서 작성 리턴 확인용",
+    "participants": [
+        "그냥일반유저"
+    ],
+    "createdAt": "2025-08-01T16:20:49.7063585"
+}
+```
 
 ### 사용자가 참여한 채팅방 목록 조회
+#### GET http://localhost:8080/api/chat/rooms
 사용자가 참여한 각 채팅방에 대해 다음 정보를 리스트 형태로 반환합니다.
 - 채팅방 ID('roomID'): 각 채팅방의 고유 식별 ID
 - 채팅방 이름('name'): 채팅방 생성 시 부여된 이름 (예: "프로젝트 회의방")
 - 참여자 목록('participants'): 해당 채팅방에 참여하고 있는 모든 사용자의 정보 목록. 참여자는 사용자 ID('userID'), 이름('username')을 포함
+
+**요청 형식**<br/>
+Headers
+```
+Authorization: Bearer eyHJqmj...
+```
+Body
+```
+
+```
+
+**반환 형식**<br/>
+Body
 ```
 [
   {
@@ -84,5 +126,67 @@
       }
     ]
   }
+]
+```
+
+### 채팅방에 사용자 초대
+초대할 사용자의 이메일을 리스트 형태로 반환합니다.
+- 이메일('emails'): 초대할 사용자의 이메일(한 번에 다수의 사용자 초대가능)
+
+**요청 형식**<br/>
+Headers
+```
+Authorization: Bearer eyHjbGc...
+```
+Body
+```
+{
+    "emails": [
+        "user1@example.com",
+        "user2@example.com"
+    ]
+}
+```
+
+**반환 형식**<br/>
+Body
+```
+```
+
+
+### 채팅방 메시지 내역 조회
+해당 채팅방의 채팅 기록을 조회합니다.
+
+**요청 형식**<br/>
+Headers
+```
+Authorization: Bearer eyHjjqw...
+```
+Body
+```
+```
+
+**반환 형식**<br/>
+Body
+```
+[
+    {
+        "messageId": 1,
+        "senderName": "어드민",
+        "message": "채팅전송 테스트",
+        "sentAt": "2025-07-29T16:05:59.45104"
+    },
+    {
+        "messageId": 4,
+        "senderName": "그냥일반유저",
+        "message": "테스트 메시지1",
+        "sentAt": "2025-08-01T15:05:38.535942"
+    },
+    {
+        "messageId": 5,
+        "senderName": "어드민",
+        "message": "테스트 메시지2",
+        "sentAt": "2025-08-01T15:06:42.839663"
+    }
 ]
 ```
