@@ -13,24 +13,42 @@
             padding: 10px;
             overflow-y: scroll;
             margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
         }
         .message {
             list-style-type: none;
             margin-bottom: 5px;
             padding: 5px 10px;
             border-radius: 5px;
+            max-width: 70%;
+            display: flex;
+            align-items: flex-end; /* Align items to the bottom */
         }
         .my-message {
             background-color: #dcf8c6;
-            text-align: right;
-            margin-left: auto;
-            max-width: 70%;
+            align-self: flex-end; /* Aligns message to the right */
         }
         .other-message {
             background-color: #f1f0f0;
-            text-align: left;
-            margin-right: auto;
-            max-width: 70%;
+            align-self: flex-start; /* Aligns message to the left */
+        }
+        .message-content {
+            display: flex;
+            align-items: flex-end;
+        }
+        .my-message .message-content {
+            flex-direction: row-reverse; /* Flips order for my messages */
+        }
+        .message-text {
+            word-break: break-all;
+            padding: 0 5px;
+        }
+        .unread-count {
+            font-size: 0.8em;
+            color: #ffc107; /* Bootstrap warning yellow */
+            font-weight: bold;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -78,9 +96,8 @@
 <script>
     let stompClient = null;
     let roomId = null;
-    let username = null; // You might want to decode this from JWT
+    let username = null;
 
-    // DOM Elements
     const roomManagementDiv = document.getElementById('room-management');
     const chatContainerDiv = document.getElementById('chat-container');
     const messagesDiv = document.getElementById('messages');
@@ -95,7 +112,6 @@
             alert('Please enter a JWT token.');
             throw new Error("JWT Token is missing.");
         }
-        // Simple decoding to get username (for display purposes)
         try {
             username = JSON.parse(atob(token.split('.')[1])).sub;
         } catch (e) {
@@ -146,7 +162,7 @@
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             await response.json();
-            getRooms(); // Refresh the list
+            getRooms();
             document.getElementById('room-name').value = '';
         } catch (error) {
             console.error('Error creating room:', error);
@@ -173,14 +189,15 @@
 
             stompClient.connect(headers, frame => {
                 console.log('Connected: ' + frame);
-                
-                // 1. Fetch chat history
                 fetchHistory();
 
-                // 2. Subscribe to the room topic
                 stompClient.subscribe(`/topic/chat/rooms/${roomId}`, message => {
                     const chatMessage = JSON.parse(message.body);
-                    showMessage(chatMessage);
+                    if (chatMessage.type === 'READ') {
+                        updateMessageReadStatus(chatMessage);
+                    } else {
+                        showMessage(chatMessage);
+                    }
                 });
 
             }, error => {
@@ -219,7 +236,7 @@
         if (messageContent && stompClient) {
             const chatMessage = {
                 roomId: roomId,
-                sender: username, // Or get from token
+                sender: username,
                 message: messageContent,
                 type: 'TALK'
             };
@@ -229,23 +246,62 @@
     }
 
     function showMessage(message) {
+        // Avoid showing system messages like JOIN/LEAVE in the main chat view
+        if (message.type !== 'TALK' && message.type !== undefined) return; 
+
         const messageElement = document.createElement('li');
-        messageElement.textContent = `${message.senderName}: ${message.message}`;
-        
-        // Align message left or right
+        messageElement.setAttribute('data-message-id', message.messageId);
+
+        const messageContentDiv = document.createElement('div');
+        messageContentDiv.className = 'message-content';
+
+        const messageTextSpan = document.createElement('span');
+        messageTextSpan.className = 'message-text';
+        messageTextSpan.textContent = `${message.senderName}: ${message.message}`;
+
+        const unreadCountSpan = document.createElement('span');
+        unreadCountSpan.className = 'unread-count';
+
+        messageContentDiv.appendChild(unreadCountSpan);
+        messageContentDiv.appendChild(messageTextSpan);
+        messageElement.appendChild(messageContentDiv);
+
         if (message.senderName === username) {
             messageElement.className = 'message my-message';
+            if (message.unreadCount > 0) {
+                unreadCountSpan.textContent = message.unreadCount;
+            }
         } else {
             messageElement.className = 'message other-message';
+            // When a message from another user is displayed, it means the current user has read it.
+            // Send a read receipt to the server.
+            if (stompClient && stompClient.connected) {
+                 stompClient.send(`/app/chat.readMessage`, {}, JSON.stringify({ 
+                    roomId: roomId,
+                    messageId: message.messageId
+                }));
+            }
         }
 
         messagesDiv.appendChild(messageElement);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight; // Scroll to bottom
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Initial load
+    function updateMessageReadStatus(update) {
+        const messageElement = document.querySelector(`li[data-message-id='${update.messageId}']`);
+        if (messageElement) {
+            const unreadCountSpan = messageElement.querySelector('.unread-count');
+            if (unreadCountSpan) {
+                if (update.unreadCount > 0) {
+                    unreadCountSpan.textContent = update.unreadCount;
+                } else {
+                    unreadCountSpan.textContent = ''; // Hide if everyone has read
+                }
+            }
+        }
+    }
+
     window.onload = () => {
-        // You can automatically fetch rooms if a token is present
         if(tokenInput.value) getRooms();
     };
     

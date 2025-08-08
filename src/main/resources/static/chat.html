@@ -26,7 +26,7 @@
     </div>
     <div class="input-container">
         <!-- 'onchange' 이벤트를 추가하여 상대방 선택 시 대화 기록을 불러오도록 함 -->
-        <input type="text" id="receiverInput" placeholder="상대방 이메일" onchange="selectReceiver()" />
+        <input type="text" id="receiverInput" placeholder="상대방 이메일" onchange="selectReceiver()" onkeydown="if(event.keyCode==13) { selectReceiver(); document.getElementById('messageInput').focus(); }" />
         <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." onkeydown="if(event.keyCode==13) sendMessage()" />
         <button id="sendButton" onclick="sendMessage()">전송</button>
     </div>

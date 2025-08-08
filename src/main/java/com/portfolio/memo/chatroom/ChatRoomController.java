@@ -1,9 +1,6 @@
 package com.portfolio.memo.chatroom;
 
-import com.portfolio.memo.chatroom.dto.ChatMessageHistoryDto;
-import com.portfolio.memo.chatroom.dto.ChatRoomInfo;
-import com.portfolio.memo.chatroom.dto.ChatRoomRequest;
-import com.portfolio.memo.chatroom.dto.ChatRoomResponse;
+import com.portfolio.memo.chatroom.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,5 +42,22 @@ public class ChatRoomController {
 
         List<ChatMessageHistoryDto> chatHistory = chatRoomService.getChatHistory(roomId);
         return ResponseEntity.ok(chatHistory);
+    }
+
+
+    // 채팅방에 유저를 초대하는 api
+    @PostMapping("/rooms/{roomId}/invite")
+    public ResponseEntity<Void> inviteUsers(
+            @PathVariable Long roomId,
+            @RequestBody InviteRequest inviteRequest,
+            @AuthenticationPrincipal UserDetails userDetails
+            ) {
+        chatRoomService.inviteUsersToChatRoom(
+                roomId,
+                inviteRequest.getEmails(),
+                userDetails.getUsername()
+        );
+
+        return ResponseEntity.ok().build();
     }
 }

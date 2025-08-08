@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
+// 서버 -> 클라이언트로 메시지 전송에 사용
 public class ChatMessageHistoryDto {
     private final Long messageId;
     private final String senderName;

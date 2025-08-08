@@ -88,4 +88,29 @@ public class ChatRoomService {
                 .map(ChatMessageHistoryDto::fromEntity)
                 .collect(Collectors.toList());
     }
+
+    // 채팅방 초대 api service
+    @Transactional
+    public void inviteUsersToChatRoom(Long roomId, List<String> userEmails, String inviterEmail) {
+        // 1. roomId로 채팅방이 있는지 조회
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다: " + roomId));
+
+        // 2. inviterEmail로 초대한 사용잦가 해당 채팅방에 참여하고 있는지 확인(권한 확인)
+        User user = userRepository.findByEmail(inviterEmail)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + inviterEmail));
+
+        // 3. userEmails 목록으로 User 목록을 조회(초대하는 사용자가 존재하는지 체크)
+        List<User> userToInvite = userRepository.findAllByEmailIn(userEmails);
+        if (userToInvite.size() != userEmails.size()) {
+            throw new EntityNotFoundException("일부 사용자를 찾을 수 없습니다.");
+        }
+
+        // 4. 조회된 User들을 ChatRoom의 participants에 추가
+        chatRoom.getParticipants().addAll(userToInvite);
+
+        // 5. 변경된 ChatRoom 저장
+        chatRoomRepository.save(chatRoom);
+
+    }
 }

@@ -31,7 +31,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public List<ChatMessage> getMessageHistory(String currentUserEmail, String otherUserEmail) {
-        List<Chat> chats = chatRepository.findBySenderAndReceiverOrReceiverAndSenderOrderByTimestampAsc(currentUserEmail, otherUserEmail, otherUserEmail, currentUserEmail);
+        List<Chat> chats = chatRepository.findConversationHistory(currentUserEmail, otherUserEmail);
 
         return chats.stream().map(chat -> {
             ChatMessage msg = new ChatMessage();

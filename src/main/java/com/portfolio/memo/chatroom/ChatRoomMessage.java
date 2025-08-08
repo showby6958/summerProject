@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "chat_messages")
@@ -35,4 +37,8 @@ public class ChatRoomMessage {
     public void prePersist() {
         sentAt = LocalDateTime.now();
     }
+
+    // 메시지와 readStatus 매핑
+    @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ChatMessageReadStatus> readStatus = new HashSet<>();
 }
