@@ -1,7 +1,7 @@
-package com.portfolio.memo.chatroom.dto;
+package com.portfolio.memo.chatroom.room.dto;
 
 import com.portfolio.memo.auth.User;
-import com.portfolio.memo.chatroom.ChatRoom;
+import com.portfolio.memo.chatroom.room.ChatRoom;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

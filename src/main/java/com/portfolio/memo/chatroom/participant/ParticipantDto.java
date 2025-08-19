@@ -1,4 +1,4 @@
-package com.portfolio.memo.chatroom.dto;
+package com.portfolio.memo.chatroom.participant;
 
 import lombok.Builder;
 import lombok.Getter;

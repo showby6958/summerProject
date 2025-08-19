@@ -1,4 +1,4 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.message;
 
 import com.portfolio.memo.auth.User;
 import jakarta.persistence.*;

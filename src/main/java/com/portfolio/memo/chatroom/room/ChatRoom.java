@@ -1,7 +1,7 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.room;
 
 import com.portfolio.memo.auth.User;
-import com.portfolio.memo.chatroom.ChatRoomMessage;
+import com.portfolio.memo.chatroom.message.ChatRoomMessage;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -1,5 +1,6 @@
-package com.portfolio.memo.chatroom.dto;
+package com.portfolio.memo.chatroom.room;
 
+import com.portfolio.memo.chatroom.participant.ParticipantDto;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

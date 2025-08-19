@@ -1,6 +1,9 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.room;
 
-import com.portfolio.memo.chatroom.dto.*;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
+import com.portfolio.memo.chatroom.participant.InviteRequest;
+import com.portfolio.memo.chatroom.room.dto.ChatRoomRequest;
+import com.portfolio.memo.chatroom.room.dto.ChatRoomResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

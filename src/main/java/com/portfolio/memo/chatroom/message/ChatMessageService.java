@@ -1,8 +1,8 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.message;
 
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
-import com.portfolio.memo.chatroom.dto.ChatMessageDto;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

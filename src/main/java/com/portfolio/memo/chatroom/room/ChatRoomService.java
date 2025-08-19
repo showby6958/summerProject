@@ -1,8 +1,13 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.room;
 
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
-import com.portfolio.memo.chatroom.dto.*;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
+import com.portfolio.memo.chatroom.message.ChatMessageRepository;
+import com.portfolio.memo.chatroom.message.ChatRoomMessage;
+import com.portfolio.memo.chatroom.participant.ParticipantDto;
+import com.portfolio.memo.chatroom.room.dto.ChatRoomRequest;
+import com.portfolio.memo.chatroom.room.dto.ChatRoomResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

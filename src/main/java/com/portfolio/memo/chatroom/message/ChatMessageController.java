@@ -1,17 +1,15 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.message;
 
-import com.portfolio.memo.chatroom.dto.ChatMessageDto;
-import com.portfolio.memo.chatroom.dto.ChatMessageHistoryDto;
-import com.portfolio.memo.chatroom.dto.ReadMessageRequest;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
+import com.portfolio.memo.chatroom.message.dto.ReadMessageRequest;
+import com.portfolio.memo.chatroom.room.ChatRoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @Controller
 @RequiredArgsConstructor

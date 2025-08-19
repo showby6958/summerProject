@@ -1,4 +1,4 @@
-package com.portfolio.memo.chatroom;
+package com.portfolio.memo.chatroom.message;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
