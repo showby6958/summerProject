@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>회원가입</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .register-container { background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 320px; text-align: center; }
+        h1 { margin-bottom: 24px; font-size: 2em; color: #333; }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { font-size: 0.9em; color: #555; margin-bottom: 8px; display: block; }
+        input[type="email"], input[type="password"], input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
+        button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1.1em; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        #message { margin-top: 15px; color: red; font-size: 0.9em; }
+        .login-link { margin-top: 20px; font-size: 0.9em; }
+        .login-link a { color: #007bff; text-decoration: none; }
+        .login-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="register-container">
+    <h1>회원가입</h1>
+    <div class="input-group">
+        <label for="email">이메일</label>
+        <input type="email" id="email" placeholder="이메일을 입력하세요" required>
+    </div>
+    <div class="input-group">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" placeholder="비밀번호를 입력하세요" required>
+    </div>
+    <div class="input-group">
+        <label for="name">이름</label>
+        <input type="text" id="name" placeholder="이름을 입력하세요" required>
+    </div>
+    <button onclick="register()">가입하기</button>
+    <p id="message"></p>
+    <div class="login-link">
+        이미 계정이 있으신가요? <a href="/login.html">로그인</a>
+    </div>
+</div>
+
+<script>
+    async function register() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const name = document.getElementById('name').value;
+        const messageElement = document.getElementById('message');
+
+        if (!email || !password || !name) {
+            messageElement.textContent = '모든 필드를 입력해주세요.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password, name })
+            });
+
+            if (response.ok) {
+                alert('회원가입 성공! 로그인 페이지로 이동합니다.');
+                window.location.href = '/login.html';
+            } else {
+                const error = await response.json();
+                messageElement.textContent = `회원가입 실패: ${error.message || '서버 오류'}`;
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            messageElement.textContent = '회원가입 중 오류가 발생했습니다.';
+        }
+    }
+</script>
+
+</body>
+</html>
