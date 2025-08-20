@@ -22,7 +22,11 @@
 ### 메시지 읽음 확인 표시 SEND /api/chat.readMessage [이동](#메시지-읽음-확인)
 - 각 사용자가 해당 메시지를 읽었는지 확인하는 기능
 
-
+### 채팅방 메시지 수정 PATCH /api/chat/rooms/{roomId}/messages/{messageId} [이동](#메시지-수정)
+- 채팅방의 메시지를 수정
+- {roomId}, {messageId}를 PathVariable로 받아 어떤 채팅방의 어떤 메시지를 수정할지 식별
+- 요청 본문(Request Body)으로 수정할 내용이 담긴 DTO를 받음
+- Spring Security의 @AuthenticationPrincipal을 통해 현재 인증된 사용자 정보를 가져와 메시지 소유권을 확인
 
 # WebSocket (StompHandler & WebSocketConfig)
 실시간으로 메시지를 주고받는 부분. STOMP 프로토콜 사용(pub/sub 모델)
@@ -233,3 +237,18 @@ Body
 읽음 정보 저장을 위한 별도 테이블 ChatMessageReadStatus 생성
 실시간 업데이트를 위한 WebSocket, 사용자가 메시지를 읽었을 때, 클라이언트가 서버로 '읽음' 신호를 WebSocket으로 전송
 서버는 읽음 신호를 받으면 DB를 업데이하고, 해당 채팅방에 다른 사옹자에게 읽음 카운트가 변경되었음을 알림
+
+
+### 메시지 수정
+- 클라이언트: 사용자가 메시지 수정을 요청한면, 클라이언트는 PATCH /api/chat/rooms/{roomId}/messages/{messageId}로 새로운 메시지 내용을 담아 API 호출합니다
+- Cnontroller: 요청을 받아 ChatMessageService의 editMessage 메서드를 호출합니다.
+- Service: 메시지 존재여부, 수정권한을 확인합니다. Entity의 내용을 수정하고 데이터베이스에 저장합니다. WebSocket을 통해 수정된 메시지를 해당 채팅방으로 브로드캐스트합니다.
+- 클라이언트(실시간 업데이트): 해당 채팅방을 구독 중인 모든 클라이언트는 WebSocket으로부터 수정된 메시지를 수신하여 화면의 메시지를 업데이트합니다.
+
+- roomId: 해당 채팅방 Id
+- messageId: 수정할 메시지 Id
+- editRequest 수정 내용
+- userDetails: 인증된 사용자 정보
+- return: 수정된 메시지 DTO
+**요청 형식**<br/>
+
