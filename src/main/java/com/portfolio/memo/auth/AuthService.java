@@ -3,6 +3,8 @@ package com.portfolio.memo.auth;
 import com.portfolio.memo.auth.dto.JwtToken;
 import com.portfolio.memo.auth.dto.LoginRequest;
 import com.portfolio.memo.auth.dto.RegisterRequest;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

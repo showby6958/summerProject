@@ -34,7 +34,7 @@ public class JwtTokenProvider {
                 .collect(Collectors.joining(","));
 
         Date now = new Date();
-        Date accessTokenExpiresIn = new Date(now.getTime() + 86400000); // 24시간
+        Date accessTokenExpiresIn = new Date(now.getTime() + 43200000); // 12시간
 
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
