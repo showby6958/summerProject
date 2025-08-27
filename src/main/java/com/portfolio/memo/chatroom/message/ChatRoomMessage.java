@@ -31,6 +31,9 @@ public class ChatRoomMessage {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
     @Column(name = "sent_at", updatable = false)
     private LocalDateTime sentAt;
 

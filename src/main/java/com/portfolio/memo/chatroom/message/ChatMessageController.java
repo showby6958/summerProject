@@ -1,15 +1,22 @@
 package com.portfolio.memo.chatroom.message;
 
+import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
 import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
+import com.portfolio.memo.chatroom.message.dto.MessageEditRequestDto;
 import com.portfolio.memo.chatroom.message.dto.ReadMessageRequest;
 import com.portfolio.memo.chatroom.room.ChatRoomService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Controller
 @RequiredArgsConstructor
@@ -55,4 +62,19 @@ public class ChatMessageController {
         messagingTemplate.convertAndSend("/topic/chat/rooms/" + request.getRoomId(), updatedMessageDto);
     }
 
+
+    // 메시지 수정 엔드포인트
+    @PatchMapping("/rooms/{roomId}/messages/{messageId}")
+    public ResponseEntity<ChatMessageDto> editMessage(
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @RequestBody MessageEditRequestDto messageEditRequestDto,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        ChatMessageDto updatedMessageDto = chatMessageService.editMessage(
+                roomId, messageId, messageEditRequestDto, userDetails);
+
+        return ResponseEntity.ok(updatedMessageDto);
+    }
 }
+

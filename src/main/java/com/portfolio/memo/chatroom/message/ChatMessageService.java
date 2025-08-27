@@ -1,11 +1,17 @@
 package com.portfolio.memo.chatroom.message;
 
+import com.portfolio.memo.auth.CustomUserDetails;
+import com.portfolio.memo.auth.CustomUserDetailsService;
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
 import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
+import com.portfolio.memo.chatroom.message.dto.MessageEditRequestDto;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +20,7 @@ public class ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ChatMessageReadStatusRepository readStatusRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public ChatMessageDto markAsRead(Long messageId, String userEmail) {
@@ -46,5 +53,36 @@ public class ChatMessageService {
                 .roomId(message.getChatRoom().getId())
                 .unreadCount(unreadCount)
                 .build();
+    }
+
+    @Transactional
+    public ChatMessageDto editMessage(Long roomId, Long messageId, MessageEditRequestDto messageEditRequestDto, CustomUserDetails userDetails) {
+        // 1. 메시지 (존재여부) 조회
+        ChatRoomMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다. ID: " + messageId));
+
+        // 2. 수정권한 확인 (메시지 작성자와 요청자가 동일한지 확인)
+        if (!message.getSender().getId().equals(userDetails.getUser().getId())) {
+            // Custom Exception 사용
+            throw new MessageEditNotAllowedException(messageId, userDetails.getUser().getId());
+        }
+
+        // 3. 새 메시지 내용, 수정 시간 업데이트
+        message.setMessage(messageEditRequestDto.getNewMessage());
+        message.setEditedAt(LocalDateTime.now());
+
+        // 4. DB에 저장 (Transactional 어노테이션으로 인해 메서드 종료 시 자동 저장)
+        ChatRoomMessage updatedMessage = chatMessageRepository.save(message);
+
+        // 5. DTO로 변환
+        ChatMessageDto updatedMessageDto = ChatMessageDto.from(updatedMessage);
+        updatedMessageDto.setType("EDIT"); // 클라이언트가 메시지 수정을 인지라도록 타입 설정
+
+        // 6. WebSocket으로 채팅방에 있는 모든 클라이언트에게 수정된 메시지 전송
+        String destination = "topic/chat/room/" + updatedMessage.getChatRoom().getId();
+        messagingTemplate.convertAndSend(destination, updatedMessageDto);
+
+        // 7. 수정된 메시지 정보 반환
+        return updatedMessageDto;
     }
 }
