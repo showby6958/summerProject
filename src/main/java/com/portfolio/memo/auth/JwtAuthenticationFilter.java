@@ -7,6 +7,8 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -15,25 +17,33 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Override
-    public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
+    public void doFilterInternal(HttpServletRequest request,
+                                 HttpServletResponse response,
+                                 FilterChain filterChain)
+            throws IOException, ServletException {
+
         // 1. 요청(HttpServletRequest)에서 토큰을 추출한다.
         String token = resolveToken(request);
 
         // 2. 토큰이 존재하고(not null), 유효한지(validate) 검사한다.
         if (token != null && jwtTokenProvider.validateToken(token)) {
-            // 3. 토큰이 유효하다면, 토큰으로부터 인증(Authentication) 객체를 가져온다.
-            Authentication authentication = jwtTokenProvider.getAuthentication(token);
-            // authentication이 null 일 경우 예외 처리
-            if (authentication != null) {
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+            String email = jwtTokenProvider.getUsernameFromToken(token);
+            // 이메일로 DB에서 유저 조회후 CustomUserDetails 반환
+            CustomUserDetails userDetails =
+                    (CustomUserDetails) customUserDetailsService.loadUserByUsername(email);
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
             // 가져온 인증 객체를 SecurityContextHolder에 저장(set)한다.
             // 여기에 인증 정보를 저장하면, 해당 요청을 처리하는 동안 @AuthenticationPrincipal 어노테이션 등을 통해
             // 언제든지 인증된 사용자 정보를 참조할 수 있게 된다.
