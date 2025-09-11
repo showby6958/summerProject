@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -55,16 +56,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    //* HttpServeletRequest에서 "Authorization" 헤더를 찾아 토큰을 추출하는 헬퍼 메소드
+    //* 쿠키에서 jwtToken을 추출하는 헬퍼 메소드 (추출만 하고 검증은 doFilterInternal 에서 진행)
     private String resolveToken(HttpServletRequest request) {
-        // "Authorization" 헤더 값을 가져온다.
-        String bearerToken = request.getHeader("Authorization");
+        // 쿠키에서 jwtToken을 읽어옴
+        Cookie[] cookies = request.getCookies();
 
-        // 헤더 값이 존재하고(hasText), Bearer 로 시작하는지 확인한다.
-        // JWT는 보통 "Bearer <토큰값>" 형식으로 전달된다.
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            // Bearer 접두사를 제외한 실제 토큰 문자열 부분만 잘라내서 반환한다.(7번째 인덱스 부터)
-            return bearerToken.substring(7);
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("jwtToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
         }
 
         // 토큰이 없거나 형식이 올바르지 않으면 null 반환
