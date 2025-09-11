@@ -42,6 +42,9 @@ public class ChatRoomMessage {
         sentAt = LocalDateTime.now();
     }
 
+    @Column(name = "delete_at")
+    private LocalDateTime deletedAt;
+
     // 메시지와 readStatus 매핑
     @OneToMany(mappedBy = "chatMessage", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ChatMessageReadStatus> readStatus = new HashSet<>();

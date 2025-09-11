@@ -41,9 +41,9 @@ public class ChatRoomController {
 
     // 채팅 기록을 불러오는 api
     @GetMapping("/rooms/{roomId}/messages")
-    public ResponseEntity<List<ChatMessageHistoryDto>> getChatHistory(@PathVariable Long roomId) {
+    public ResponseEntity<List<ChatMessageHistoryDto>> getChatHistory(@PathVariable Long roomId, @AuthenticationPrincipal UserDetails userDetails) {
 
-        List<ChatMessageHistoryDto> chatHistory = chatRoomService.getChatHistory(roomId);
+        List<ChatMessageHistoryDto> chatHistory = chatRoomService.getChatHistory(roomId, userDetails.getUsername());
         return ResponseEntity.ok(chatHistory);
     }
 

@@ -14,6 +14,7 @@ import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -75,6 +76,18 @@ public class ChatMessageController {
                 roomId, messageId, messageEditRequestDto, userDetails);
 
         return ResponseEntity.ok(updatedMessageDto);
+    }
+
+    // 메시지 삭제 엔드포인트
+    @DeleteMapping("/rooms/{roomId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @PathVariable Long roomId,
+            @PathVariable Long messageId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        chatMessageService.deleteMessage(roomId, messageId, userDetails);
+
+        return ResponseEntity.ok().build();
     }
 }
 

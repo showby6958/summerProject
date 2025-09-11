@@ -76,7 +76,7 @@ public class ChatMessageService {
 
         // 5. DTO로 변환
         ChatMessageDto updatedMessageDto = ChatMessageDto.from(updatedMessage);
-        updatedMessageDto.setType("EDIT"); // 클라이언트가 메시지 수정을 인지라도록 타입 설정
+        updatedMessageDto.setType("EDIT"); // 클라이언트가 메시지 수정을 인지하도록 타입 설정
 
         // 6. WebSocket으로 채팅방에 있는 모든 클라이언트에게 수정된 메시지 전송
         String destination = "topic/chat/room/" + updatedMessage.getChatRoom().getId();
@@ -84,5 +84,32 @@ public class ChatMessageService {
 
         // 7. 수정된 메시지 정보 반환
         return updatedMessageDto;
+    }
+
+    @Transactional
+    public void deleteMessage(Long roomId, Long messageId, CustomUserDetails userDetails) {
+
+        // 1. 메시지 조회
+        ChatRoomMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다." + messageId));
+
+        // 2. 삭제 권한 확인(메시지 작성자와 요청자가 동일한지)
+        if (!message.getSender().getId().equals(userDetails.getUser().getId())) {
+            throw new MessageDeleteNotAllowed(messageId, userDetails.getUser().getId());
+        }
+
+        // 3. Soft Delete 방식 (나중에 soft + hard delete 형식으로 변경 )
+        message.setMessage("삭제된 메시지입니다.");
+        message.setDeletedAt(LocalDateTime.now());
+
+        // 4. DB에 저장
+        ChatRoomMessage deleteMessage = chatMessageRepository.save(message);
+
+        // 5. DTO로 변환하여 WebSocket 전송
+        ChatMessageDto deleteMessageDto = ChatMessageDto.from(deleteMessage);
+        deleteMessageDto.setType("DELETE"); // 클라이언트가 메시지 삭제를 인지하도록 타입 설정
+
+        String destination = "/topic/chat/rooms/" + deleteMessage.getChatRoom().getId();
+        messagingTemplate.convertAndSend(destination, deleteMessageDto);
     }
 }

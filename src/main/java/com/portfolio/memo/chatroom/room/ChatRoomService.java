@@ -1,7 +1,11 @@
 package com.portfolio.memo.chatroom.room;
 
+import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
+import com.portfolio.memo.chat.dto.ChatMessage;
+import com.portfolio.memo.chatroom.message.MessageDeleteNotAllowed;
+import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
 import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
 import com.portfolio.memo.chatroom.message.ChatMessageRepository;
 import com.portfolio.memo.chatroom.message.ChatRoomMessage;
@@ -13,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -86,15 +91,30 @@ public class ChatRoomService {
     }
 
 
-    // 채팅 기록(생성시간을 오름차순으로 조회)을 불러오는 api service
-    public List<ChatMessageHistoryDto> getChatHistory(Long roomId) {
+    // 채팅 기록(생성시간을 오름차순으로 조회)을 불러오는 api
+    public List<ChatMessageHistoryDto> getChatHistory(Long roomId, String userEmail) {
+        // 1. 채팅방과 사용자가 존재하는지 확인
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다: " + roomId));
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + userEmail));
+
+        // 2. 요청한 사용자가 해당 채팅방의 참여자인지 권한 확인
+        boolean isParticipant = chatRoom.getParticipants().stream()
+                .anyMatch(participant -> participant.getId().equals(user.getId()));
+
+        if (!isParticipant) {
+            throw new SecurityException("이 채팅방의 기록을 볼 권한이 없습니다.");
+        }
+
+        // 3. 권한이 확인되면, 채팅 기록을 반환
         List<ChatRoomMessage> messages = chatMessageRepository.findByChatRoom_IdOrderBySentAtAsc(roomId);
         return messages.stream()
                 .map(ChatMessageHistoryDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
-    // 채팅방 초대 api service
+    // 채팅방 초대 api
     @Transactional
     public void inviteUsersToChatRoom(Long roomId, List<String> userEmails, String inviterEmail) {
         // 1. roomId로 채팅방이 있는지 조회
@@ -116,6 +136,6 @@ public class ChatRoomService {
 
         // 5. 변경된 ChatRoom 저장
         chatRoomRepository.save(chatRoom);
-
     }
+
 }
