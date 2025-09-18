@@ -45,7 +45,7 @@ public class ChatMessageDto {
 
         return ChatMessageDto.builder()
                 .messageId(chatRoomMessage.getId())
-                .roomId(chatRoomMessage.getId())
+                .roomId(chatRoomMessage.getChatRoom().getId())
                 .sender(chatRoomMessage.getSender().getName())
                 .message(chatRoomMessage.getMessage())
                 .sentAt(chatRoomMessage.getSentAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
