@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 "/chat.html",
                                 "/chatroom.html",
                                 "/ws-chat/**",
-                                "/ws-native/**").permitAll()
+                                "/ws-native/**",
+                                "/task.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -6,12 +6,16 @@ import com.portfolio.memo.auth.dto.RegisterRequest;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +25,11 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
+
+    // jwtRedisTemplate 빈(Bean) 등록
+    // (같은 이름의 Bean이 여러개(RedisTemplate) 있을 경우 Spring에게 특정 빈(jwtRedisTemplate)을 사용한다고 지정하는 코드임)
+    @Qualifier("jwtRedisTemplate")
+    private final RedisTemplate<String, String> jwtRedisTemplate;
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -53,6 +62,22 @@ public class AuthService {
         // 3. 인증 정보를 기반으로 JWT 토큰 생성
         JwtToken jwtToken = jwtTokenProvider.generateToken(authentication);
 
+        // 4. Redis에 저장할 Key 생성
+        String key = "jwt:refresh:" + authentication.getName();
+
+        //5. Redis에 Refresh Token 저장 (Key, Value, TTL 설정)
+        jwtRedisTemplate.opsForValue().set(
+                key,
+                jwtToken.getRefreshToken(),
+                jwtTokenProvider.getRefreshTokenValidityInMilliseconds(),
+                TimeUnit.MILLISECONDS
+        );
+
         return jwtToken;
+    }
+
+    public void logout(String email) {
+        String key = "jwt:refresh:" + email;
+        jwtRedisTemplate.delete(key);
     }
 }

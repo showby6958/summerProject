@@ -7,6 +7,8 @@ import com.portfolio.memo.auth.dto.UserInfoDto;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -21,6 +23,12 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @Value("${jwt.access-token-validity-ms}")
+    private Long accessTokenValidityInMilliseconds;
+
+    @Value("${jwt.refresh-token-validity-ms}")
+    private Long refreshTokenValidityInMilliseconds;
+
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
         authService.register(request);
@@ -33,19 +41,41 @@ public class AuthController {
         JwtToken token = authService.login(request);
 
         // jwt 저장소 -> cookie 에 저장
-        // 2. 쿠키 생성
-        ResponseCookie cookie = ResponseCookie.from("jwtToken", token.getAccessToken())
-                .maxAge(3600)
+        // 2. Access Token을 httpOny 쿠키로 전달
+        ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", token.getAccessToken())
+                .maxAge(accessTokenValidityInMilliseconds) // Access Token 만료시간 = 1시간
                 .path("/")
                 .httpOnly(true)
                 .sameSite("Lax")
-//                .secure(true)
+//                .secure(true) // HTTPS 환경에서만 전송
                 .build();
-        // 3. 응답헤더에 쿠키 추가
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
 
+        // 3. Refresh Token을 httpOnly 쿠키로 전달
+        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", token.getRefreshToken())
+                .maxAge(refreshTokenValidityInMilliseconds)
+                .httpOnly(true)
+                .sameSite("Lax")
+//                .secure(true) // HTTPS 환경에서만 전송
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
         return ResponseEntity.ok("로그인에 성공했습니다.");
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletResponse response) {
+        authService.logout(userDetails.getUsername());
+
+        ResponseCookie cookie = ResponseCookie.from("jwtToken", null)
+                .maxAge(0)
+                .path("/")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+        return ResponseEntity.ok("로그아웃 되었습니다.");
     }
 
     // 현재 유저의 정보를 가져오는 api

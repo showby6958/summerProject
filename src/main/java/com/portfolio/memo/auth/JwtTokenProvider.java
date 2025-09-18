@@ -21,6 +21,15 @@ import java.util.stream.Collectors;
 public class JwtTokenProvider {
 
     private final Key key;
+    @Value("${jwt.access-token-validity-ms}")
+    private Long accessTokenValidityInMilliseconds;
+
+    @Value("${jwt.refresh-token-validity-ms}")
+    private Long refreshTokenValidityInMilliseconds;
+
+    public long getRefreshTokenValidityInMilliseconds() {
+        return refreshTokenValidityInMilliseconds;
+    }
 
     public JwtTokenProvider(@Value("${jwt.secret}") String secretKey) {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
@@ -33,18 +42,18 @@ public class JwtTokenProvider {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
+
         Date now = new Date();
-        Date accessTokenExpiresIn = new Date(now.getTime() + 43200000); // 12시간
 
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName())
                 .claim("auth", authorities)
-                .setExpiration(accessTokenExpiresIn)
+                .setExpiration(new Date(now.getTime() + accessTokenValidityInMilliseconds))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
         String refreshToken = Jwts.builder()
-                .setExpiration(new Date(now.getTime() + 86400000))
+                .setExpiration(new Date(now.getTime() + refreshTokenValidityInMilliseconds))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
