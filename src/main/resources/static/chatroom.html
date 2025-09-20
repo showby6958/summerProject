@@ -23,22 +23,22 @@
             border-radius: 5px;
             max-width: 70%;
             display: flex;
-            align-items: flex-end; /* Align items to the bottom */
+            align-items: flex-end;
         }
         .my-message {
             background-color: #dcf8c6;
-            align-self: flex-end; /* Aligns message to the right */
+            align-self: flex-end;
         }
         .other-message {
             background-color: #f1f0f0;
-            align-self: flex-start; /* Aligns message to the left */
+            align-self: flex-start;
         }
         .message-content {
             display: flex;
             align-items: flex-end;
         }
         .my-message .message-content {
-            flex-direction: row-reverse; /* Flips order for my messages */
+            flex-direction: row-reverse;
         }
         .message-text {
             word-break: break-all;
@@ -46,7 +46,7 @@
         }
         .unread-count {
             font-size: 0.8em;
-            color: #ffc107; /* Bootstrap warning yellow */
+            color: #ffc107;
             font-weight: bold;
             white-space: nowrap;
         }
@@ -55,15 +55,8 @@
 <body>
 
 <div class="container">
-    <h2>Chat Room Test Page</h2>
-
-    <!-- JWT Token Input -->
-    <div class="mb-3">
-        <label for="token" class="form-label">JWT Token</label>
-        <input type="text" class="form-control" id="token" placeholder="Enter your JWT token here">
-        <div id="user-email" class="form-text" style="color: #007bff; font-weight: bold; margin-top: 5px;"></div>
-        <div class="form-text">Login first to get a token.</div>
-    </div>
+    <h2>Chat Room</h2>
+    <p>Logged in as: <strong id="user-email" style="color: #007bff;"></strong></p>
 
     <!-- Room Management -->
     <div id="room-management">
@@ -97,50 +90,44 @@
 <script>
     let stompClient = null;
     let roomId = null;
-    let username = null;
+    let currentUserId = null; // Store user's ID
+    let currentUsername = null; // Store user's email/name
 
     const roomManagementDiv = document.getElementById('room-management');
     const chatContainerDiv = document.getElementById('chat-container');
     const messagesDiv = document.getElementById('messages');
     const roomListUl = document.getElementById('room-list');
     const roomTitleH3 = document.getElementById('room-title');
-    const tokenInput = document.getElementById('token');
     const messageInput = document.getElementById('message');
     const userEmailDiv = document.getElementById('user-email');
 
-    tokenInput.addEventListener('input', () => {
-        const token = tokenInput.value;
-        if (token) {
-            try {
-                const email = JSON.parse(atob(token.split('.')[1])).sub;
-                userEmailDiv.textContent = `User Email: ${email}`;
-            } catch (e) {
-                userEmailDiv.textContent = 'Invalid Token';
-            }
-        } else {
-            userEmailDiv.textContent = '';
-        }
+    document.addEventListener("DOMContentLoaded", function() {
+        initializeApp();
     });
 
-    function getAuthHeaders() {
-        const token = tokenInput.value;
-        if (!token) {
-            alert('Please enter a JWT token.');
-            throw new Error("JWT Token is missing.");
-        }
+    async function initializeApp() {
         try {
-            username = JSON.parse(atob(token.split('.')[1])).sub;
-        } catch (e) {
-            console.error("Could not decode token to get username", e);
-            username = "UnknownUser";
+            const response = await fetch('/api/auth/me');
+            if (response.ok) {
+                const userInfo = await response.json();
+                currentUserId = userInfo.id;
+                currentUsername = userInfo.email;
+                userEmailDiv.textContent = currentUsername;
+                getRooms();
+            } else {
+                alert("로그인이 필요합니다. 로그인 페이지로 이동합니다.");
+                window.location.href = '/login.html';
+            }
+        } catch (error) {
+            console.error('Initialization error:', error);
+            alert("오류가 발생하여 로그인 페이지로 이동합니다.");
+            window.location.href = '/login.html';
         }
-        return { 'Authorization': `Bearer ${token}` };
     }
 
     async function getRooms() {
         try {
-            const headers = getAuthHeaders();
-            const response = await fetch('/api/chat/rooms', { headers });
+            const response = await fetch('/api/chat/rooms');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const rooms = await response.json();
             
@@ -160,12 +147,12 @@
             });
         } catch (error) {
             console.error('Error fetching rooms:', error);
+            alert('Failed to fetch rooms. Make sure you are logged in.');
         }
     }
 
     async function createRoom() {
         try {
-            const headers = getAuthHeaders();
             const roomName = document.getElementById('room-name').value;
             if (!roomName) {
                 alert('Please enter a room name.');
@@ -173,7 +160,7 @@
             }
             const response = await fetch('/api/chat/rooms', {
                 method: 'POST',
-                headers: { ...headers, 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: roomName })
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -182,6 +169,7 @@
             document.getElementById('room-name').value = '';
         } catch (error) {
             console.error('Error creating room:', error);
+            alert('Failed to create room.');
         }
     }
 
@@ -199,18 +187,23 @@
 
     function connect() {
         try {
-            const headers = getAuthHeaders();
             const socket = new SockJS('/ws-chat');
             stompClient = Stomp.over(socket);
 
-            stompClient.connect(headers, frame => {
+            stompClient.connect({}, frame => {
                 console.log('Connected: ' + frame);
                 fetchHistory();
 
+                // --- WebSocket 메시지 처리 로직 ---
                 stompClient.subscribe(`/topic/chat/rooms/${roomId}`, message => {
                     const chatMessage = JSON.parse(message.body);
+                    
                     if (chatMessage.type === 'READ') {
                         updateMessageReadStatus(chatMessage);
+                    } else if (chatMessage.type === 'EDIT') {
+                        editMessageOnScreen(chatMessage); // 수정 처리 함수 호출
+                    } else if (chatMessage.type === 'DELETE') {
+                        deleteMessageOnScreen(chatMessage); // 삭제 처리 함수 호출
                     } else {
                         showMessage(chatMessage);
                     }
@@ -227,8 +220,7 @@
     
     async function fetchHistory() {
         try {
-            const headers = getAuthHeaders();
-            const response = await fetch(`/api/chat/rooms/${roomId}/messages`, { headers });
+            const response = await fetch(`/api/chat/rooms/${roomId}/messages`);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const history = await response.json();
             history.forEach(message => showMessage(message));
@@ -252,18 +244,19 @@
         if (messageContent && stompClient) {
             const chatMessage = {
                 roomId: roomId,
-                sender: username,
+                sender: currentUsername,
                 message: messageContent,
                 type: 'TALK'
             };
+            // 서버의 MessageMapping 경로와 일치해야 합니다.
             stompClient.send(`/app/chat.sendMessage`, {}, JSON.stringify(chatMessage));
             messageInput.value = '';
         }
     }
 
     function showMessage(message) {
-        // Avoid showing system messages like JOIN/LEAVE in the main chat view
-        if (message.type !== 'TALK' && message.type !== undefined) return; 
+        // TALK 타입 외에 EDIT, DELETE 등 다른 타입의 메시지는 여기서 바로 표시하지 않도록 처리
+        if (message.type !== 'TALK' && message.type !== undefined) return;
 
         const messageElement = document.createElement('li');
         messageElement.setAttribute('data-message-id', message.messageId);
@@ -273,24 +266,56 @@
 
         const messageTextSpan = document.createElement('span');
         messageTextSpan.className = 'message-text';
+        // 초기 메시지 내용 설정
         messageTextSpan.textContent = `${message.senderName}: ${message.message}`;
+        
+        // 수정됨 표시를 위한 작은 span
+        const editedSpan = document.createElement('span');
+        editedSpan.className = 'edited-indicator';
+        editedSpan.style.fontSize = '0.7em';
+        editedSpan.style.color = '#888';
+        editedSpan.style.marginLeft = '5px';
+        if (message.editedAt) {
+            editedSpan.textContent = '(수정됨)';
+        }
 
         const unreadCountSpan = document.createElement('span');
         unreadCountSpan.className = 'unread-count';
 
         messageContentDiv.appendChild(unreadCountSpan);
         messageContentDiv.appendChild(messageTextSpan);
+        messageContentDiv.appendChild(editedSpan); // 수정됨 표시 span 추가
+
         messageElement.appendChild(messageContentDiv);
 
-        if (message.senderName === username) {
+        // 내가 보낸 메시지인 경우
+        if (message.senderId === currentUserId) {
             messageElement.className = 'message my-message';
             if (message.unreadCount > 0) {
                 unreadCountSpan.textContent = message.unreadCount;
             }
-        } else {
+
+            // --- 수정/삭제 버튼 추가 ---
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+
+            const editButton = document.createElement('button');
+            editButton.className = 'btn btn-sm btn-outline-primary';
+            editButton.textContent = '수정';
+            editButton.onclick = () => sendEditRequest(message.messageId);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn-sm btn-outline-danger';
+            deleteButton.textContent = '삭제';
+            deleteButton.onclick = () => sendDeleteRequest(message.messageId);
+            
+            actionsDiv.appendChild(editButton);
+            actionsDiv.appendChild(deleteButton);
+            messageContentDiv.appendChild(actionsDiv); // 버튼 그룹 추가
+
+        } else { // 다른 사람이 보낸 메시지
             messageElement.className = 'message other-message';
-            // When a message from another user is displayed, it means the current user has read it.
-            // Send a read receipt to the server.
+            // 내가 아직 안 읽은 메시지라면, 읽음 처리 요청 전송
             if (stompClient && stompClient.connected) {
                  stompClient.send(`/app/chat.readMessage`, {}, JSON.stringify({ 
                     roomId: roomId,
@@ -311,26 +336,83 @@
                 if (update.unreadCount > 0) {
                     unreadCountSpan.textContent = update.unreadCount;
                 } else {
-                    unreadCountSpan.textContent = ''; // Hide if everyone has read
+                    unreadCountSpan.textContent = '';
                 }
             }
         }
     }
 
-    window.onload = () => {
-        if(tokenInput.value) {
-            getRooms();
-            const token = tokenInput.value;
-            if (token) {
-                try {
-                    const email = JSON.parse(atob(token.split('.')[1])).sub;
-                    userEmailDiv.textContent = `User Email: ${email}`;
-                } catch (e) {
-                    userEmailDiv.textContent = 'Invalid Token';
-                }
+    // --- 메시지 수정/삭제 관련 함수들 ---
+
+    function editMessageOnScreen(message) {
+        const messageElement = document.querySelector(`li[data-message-id='${message.messageId}']`);
+        if (messageElement) {
+            const messageTextSpan = messageElement.querySelector('.message-text');
+            const editedSpan = messageElement.querySelector('.edited-indicator');
+            if (messageTextSpan) {
+                messageTextSpan.textContent = `${message.senderName}: ${message.message}`;
+            }
+            if (editedSpan) {
+                editedSpan.textContent = '(수정됨)';
             }
         }
-    };
+    }
+
+    function deleteMessageOnScreen(message) {
+        const messageElement = document.querySelector(`li[data-message-id='${message.messageId}']`);
+        if (messageElement) {
+            const messageTextSpan = messageElement.querySelector('.message-text');
+            if (messageTextSpan) {
+                messageTextSpan.textContent = message.message; // "삭제된 메시지입니다."
+                messageTextSpan.style.color = '#aaa';
+                messageTextSpan.style.fontStyle = 'italic';
+            }
+            // 버튼 삭제
+            const actionsDiv = messageElement.querySelector('.message-actions');
+            if (actionsDiv) {
+                actionsDiv.remove();
+            }
+        }
+    }
+
+    async function sendEditRequest(messageId) {
+        const newMessage = prompt("새 메시지 내용을 입력하세요:");
+        if (newMessage === null || newMessage.trim() === "") return; // 취소 또는 빈 메시지
+
+        try {
+            const response = await fetch(`/rooms/${roomId}/messages/${messageId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newMessage: newMessage })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            // 성공 시 별도 처리 없음. WebSocket이 업데이트를 처리할 것임.
+        } catch (error) {
+            console.error('Error editing message:', error);
+            alert(`메시지 수정 실패: ${error.message}`);
+        }
+    }
+
+    async function sendDeleteRequest(messageId) {
+        if (!confirm("정말로 이 메시지를 삭제하시겠습니까?")) return;
+
+        try {
+            const response = await fetch(`/rooms/${roomId}/messages/${messageId}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            // 성공 시 별도 처리 없음. WebSocket이 업데이트를 처리할 것임.
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            alert(`메시지 삭제 실패: ${error.message}`);
+        }
+    }
     
     messageInput.addEventListener("keyup", function(event) {
         if (event.key === "Enter") {

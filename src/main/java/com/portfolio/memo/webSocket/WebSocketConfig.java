@@ -2,11 +2,18 @@ package com.portfolio.memo.webSocket;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpCookie;
+import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
+
+import java.security.Principal;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
@@ -35,7 +42,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // 클라이언트가 WebSocket에 연결힐 때 사용할 엔드포인트 등록
         // 예: const socket = new SockJS('/ws-chat');
         // 기존 chat.html을 위한 SockJS 엔드포인트
-        registry.addEndpoint("/ws-chat").withSockJS();
+
+        // HTTP 인증 결과를 WebSocket 세션으로 복사하도록 설정
+        registry.addEndpoint("/ws-chat").setHandshakeHandler(
+                new DefaultHandshakeHandler() {
+                    @Override
+                    protected Principal determineUser(ServerHttpRequest request,
+                                                      WebSocketHandler wsHandler,
+                                                      Map<String, Object> attributes) {
+
+                        return request.getPrincipal();
+                    }
+                }
+        ).withSockJS();
         // Postman 등 표준 WebSocket 클라이언트 테스트를 위한 엔드포인트
         registry.addEndpoint("/ws-native");
     }

@@ -1,5 +1,6 @@
 package com.portfolio.memo.chat;
 
+import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.chat.dto.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -42,9 +43,9 @@ public class ChatController {
 
     @GetMapping("/api/chat/history/{otherUserEmail}")
     public ResponseEntity<List<ChatMessage>> getMessageHistory(
-        @PathVariable String otherUserEmail,
-        @AuthenticationPrincipal UserDetails userDetails
-    ) {
+            @PathVariable String otherUserEmail,
+            @AuthenticationPrincipal UserDetails userDetails
+            ) {
         String currentUserEmail = userDetails.getUsername();
         List<ChatMessage> history = chatService.getMessageHistory(currentUserEmail, otherUserEmail);
 
