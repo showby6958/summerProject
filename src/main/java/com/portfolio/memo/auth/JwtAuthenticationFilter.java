@@ -63,7 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("jwtToken".equals(cookie.getName())) {
+                if ("accessToken".equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }

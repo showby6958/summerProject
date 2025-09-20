@@ -54,6 +54,7 @@ public class AuthController {
         // 3. Refresh Token을 httpOnly 쿠키로 전달
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", token.getRefreshToken())
                 .maxAge(refreshTokenValidityInMilliseconds)
+                .path("/")
                 .httpOnly(true)
                 .sameSite("Lax")
 //                .secure(true) // HTTPS 환경에서만 전송
@@ -61,21 +62,6 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
         return ResponseEntity.ok("로그인에 성공했습니다.");
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<String> logout(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            HttpServletResponse response) {
-        authService.logout(userDetails.getUsername());
-
-        ResponseCookie cookie = ResponseCookie.from("jwtToken", null)
-                .maxAge(0)
-                .path("/")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-
-        return ResponseEntity.ok("로그아웃 되었습니다.");
     }
 
     // 현재 유저의 정보를 가져오는 api

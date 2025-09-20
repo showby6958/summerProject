@@ -75,9 +75,4 @@ public class AuthService {
 
         return jwtToken;
     }
-
-    public void logout(String email) {
-        String key = "jwt:refresh:" + email;
-        jwtRedisTemplate.delete(key);
-    }
 }
