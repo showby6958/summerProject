@@ -13,6 +13,8 @@ public class ChatMessageHistoryDto {
     private final Long messageId;
     private final String senderName;
     private final String message;
+
+
     private final LocalDateTime sentAt;
 
     public static ChatMessageHistoryDto fromEntity(ChatRoomMessage entity) {

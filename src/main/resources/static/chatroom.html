@@ -358,20 +358,11 @@
         }
     }
 
+    // [수정됨] 메시지 내용을 바꾸는 대신, 요소를 완전히 제거
     function deleteMessageOnScreen(message) {
         const messageElement = document.querySelector(`li[data-message-id='${message.messageId}']`);
         if (messageElement) {
-            const messageTextSpan = messageElement.querySelector('.message-text');
-            if (messageTextSpan) {
-                messageTextSpan.textContent = message.message; // "삭제된 메시지입니다."
-                messageTextSpan.style.color = '#aaa';
-                messageTextSpan.style.fontStyle = 'italic';
-            }
-            // 버튼 삭제
-            const actionsDiv = messageElement.querySelector('.message-actions');
-            if (actionsDiv) {
-                actionsDiv.remove();
-            }
+            messageElement.remove();
         }
     }
 
@@ -400,6 +391,7 @@
         if (!confirm("정말로 이 메시지를 삭제하시겠습니까?")) return;
 
         try {
+            // [중요] API 경로가 프론트엔드에 맞춰져 있는지 확인
             const response = await fetch(`/rooms/${roomId}/messages/${messageId}`, {
                 method: 'DELETE'
             });

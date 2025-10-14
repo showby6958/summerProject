@@ -23,9 +23,10 @@ public class ChatMessageDto {
     // unreadCount = 채팅방 총 인원 - readStatus Set의 크기
     private Long messageId;
     private int unreadCount; // 안 읽은 사람 수
+    private boolean isDeleted;
 
     @Builder
-    public ChatMessageDto(String type, Long roomId, String sender, String message, String sentAt, String editedAt, Long messageId, int unreadCount) {
+    public ChatMessageDto(String type, Long roomId, String sender, String message, String sentAt, String editedAt, Long messageId, int unreadCount, boolean isDeleted) {
         this.type = type;
         this.roomId = roomId;
         this.messageId = messageId;
@@ -34,6 +35,7 @@ public class ChatMessageDto {
         this.sentAt = sentAt;
         this.editedAt = editedAt;
         this.unreadCount = unreadCount;
+        this.isDeleted = isDeleted();
 
     }
 
