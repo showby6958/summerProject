@@ -1,21 +1,21 @@
 package com.portfolio.memo.chatroom.message.dto;
 
 import com.portfolio.memo.chatroom.message.ChatRoomMessage;
-import lombok.Builder;
-import lombok.Getter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 // 서버 -> 클라이언트로 메시지 전송에 사용
 public class ChatMessageHistoryDto {
-    private final Long messageId;
-    private final String senderName;
-    private final String message;
-
-
-    private final LocalDateTime sentAt;
+    private Long messageId;
+    private String senderName;
+    private String message;
+    private LocalDateTime sentAt;
 
     public static ChatMessageHistoryDto fromEntity(ChatRoomMessage entity) {
         return ChatMessageHistoryDto.builder()

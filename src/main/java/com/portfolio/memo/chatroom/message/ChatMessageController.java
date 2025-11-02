@@ -49,12 +49,13 @@ public class ChatMessageController {
     // 메시지 읽음 처리 엔드포인트
     // messageId, roomId를 보내면 서버는 읽음 처리를 하고 해당 방 구독자에게 읽음 상태가 업데이트되었음을 알림
     @MessageMapping("/chat.readMessage")
-    public void readMessage(@Payload ReadMessageRequest request, Authentication authentication) {
+    public void readMessage(@Payload ReadMessageRequest request, CustomUserDetails customUserDetails) {
 
-        String userEmail = authentication.getName();
+
+        Long userId = customUserDetails.getUser().getId();
 
         // 1. chatMessageService 호출해서 메시지 읽음으로 표시, 업데이트된 정보 받음
-        ChatMessageDto updatedMessageDto = chatMessageService.markAsRead(request.getMessageId(), userEmail);
+        ChatMessageDto updatedMessageDto = chatMessageService.markAsRead(request.getMessageId(), userId);
 
         // 2. 해당 채티방의 '/read' 토픽을 구독하는 클라이언트에게 업데이트된 정보 전송
         // 클라이언트는 이 정보를 받아서 messageId에 해당하는 메시지의 unreadCount를 업데이트
@@ -70,8 +71,12 @@ public class ChatMessageController {
             @RequestBody MessageEditRequestDto messageEditRequestDto,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        ChatMessageDto updatedMessageDto = chatMessageService.editMessage(
-                roomId, messageId, messageEditRequestDto, userDetails);
+        // 1. 서비스 호출하여 메시지 수정 및 브로드캐스팅할 수정된 메시지 DTO 받음
+        ChatMessageDto updatedMessageDto = chatMessageService.editMessage(roomId, messageId, messageEditRequestDto, userDetails);
+
+        // 2. WebSocket으로 채팅방에 있는 모든 클라이언트에게 수정된 메시지 전송
+        String destination = "topic/chat/rooms/" + updatedMessageDto.getRoomId();
+        messagingTemplate.convertAndSend(destination, updatedMessageDto);
 
         return ResponseEntity.ok(updatedMessageDto);
     }
@@ -83,7 +88,12 @@ public class ChatMessageController {
             @PathVariable Long messageId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        chatMessageService.deleteMessage(roomId, messageId, userDetails);
+        // 1. 서비스 호출하여 메시지 삭제 및 브로드캐스팅할 DTO 받음
+        ChatMessageDto deleteMessageDto = chatMessageService.deleteMessage(roomId, messageId, userDetails);
+
+        // 2. WebSocket 토픽으로 메시지 삭제 정보 전송
+        String destination = "/topic/chat/rooms/" + deleteMessageDto.getRoomId();
+        messagingTemplate.convertAndSend(destination, deleteMessageDto);
 
         return ResponseEntity.ok().build();
     }
