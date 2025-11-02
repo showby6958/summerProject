@@ -34,9 +34,15 @@ public class ChatMessageService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final RedisTemplate<String, String> redisTemplate;
-//    private final ObjectMapper objectMapper;
-    private final RedisSerializer redisSerializer;
+    private final ObjectMapper objectMapper;
+
+    // 메시지 JSON 캐시용
+    @Qualifier("chatRedisTemplate")
+    private final RedisTemplate<String, String> chatRedisTemplate;
+
+    // 메시지 읽음 상태/카운트 전용
+    @Qualifier("chatCountRedisTemplate")
+    private final StringRedisTemplate chatCountRedisTemplate;
 
     private static final long CACHE_MAX_SIZE = 100; // 캐시에 저장할 최신 메시지 수
 
@@ -58,27 +64,102 @@ public class ChatMessageService {
         // 1. DB에 메시지 저장
         ChatRoomMessage savedMessage = chatMessageRepository.save(chatMessage);
 
-        // 2. Redis 캐싱 및 읽음 상태 처리
-        updateRedisOnNewMessage(savedMessage, chatRoom.getParticipants().size());
+        // 2. 메시지 Redis 캐싱
+        cacheChatMessage(savedMessage);
+
+        // 3. 읽음 상태 캐싱 (unreadCount, readBy Set)
+        initializeReadStatus(savedMessage, chatRoom.getParticipants().size());
 
         // 3. 저장된 엔티티 반환
         return savedMessage;
     }
 
+    private void cacheChatMessage(ChatRoomMessage message) {
+        Long roomId = message.getChatRoom().getId();
+        Long messageId = message.getId();
+
+        // Redis 키 구성
+        String zsetKey = "chat:room:" + roomId + ":messages"; // 메시지 정렬용
+        String messageKey = "chat:message:" + messageId; // 실제 메시지 내용 저장
+        ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.fromEntity(message);
+
+        try {
+            // 1. Dto -> JSON 문자열
+            String messageJson = objectMapper.writeValueAsString(messageDto);
+
+            // 2. 개별 메시지 저장(메시지 본문)
+            chatRedisTemplate.opsForValue().set(messageKey, messageJson);
+
+            // 3. ZSET에는 messageId만 추가 (score는 생성시간 기준)
+            double score = message.getSentAt() != null
+                    ? message.getSentAt().toEpochSecond(ZoneOffset.ofHours(9))
+                    : messageId.doubleValue();
+
+            chatRedisTemplate.opsForZSet().add(zsetKey, "message:" + messageId, score);
+
+            // 오래된 메시지 캐시 관리
+            Long size = chatRedisTemplate.opsForZSet().size(zsetKey);
+            if (size != null && size > CACHE_MAX_SIZE) {
+                chatRedisTemplate.opsForZSet().removeRange(zsetKey, 0, size - CACHE_MAX_SIZE - 1);
+            }
+
+            log.info("Redis 캐시에 메시지 저장 완료. roomId: {}, messageId: {}", roomId, messageId);
+
+        } catch (JsonProcessingException e) {
+            log.error("메시지 JSON 직렬화 실패", e);
+        }
+    }
+
+
+    /*
+    // 메시지를 Redis Sorted Set에 캐싱 (메시지 캐싱용)
+    private void cacheChatMessage(ChatRoomMessage message) {
+        String historyKey = "chat:room:" + message.getChatRoom().getId() + ":messages";
+        ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.fromEntity(message);
+        long score = message.getId(); // 메시지 ID를 score로 사용(먼저 작성된 메시지 = ID 낮음 <-- ID 낮은 순서 대로 정렬)
+
+        chatRedisTemplate.opsForZSet().add(historyKey, messageDto, score);
+
+        // 캐시 크기 관리 (오래된 메시지 캐시에서 삭제)
+        Long size = chatRedisTemplate.opsForZSet().size(historyKey);
+        if (size != null && size > CACHE_MAX_SIZE) {
+            chatRedisTemplate.opsForZSet().removeRange(historyKey, 0, size - CACHE_MAX_SIZE - 1);
+        }
+    }
+
+     */
+
+    // 메시지 읽음 상태를 Redis에 초기화 (메시지 읽음 상태 캐싱용)
+    private void initializeReadStatus(ChatRoomMessage message, int totalParticipants) {
+        String unreadCountKey = "chat:message:" + message.getId() + ":unread";
+        String readBySetKey = "chat:message:" + message.getId() + ":readBy";
+
+        int unreadCount = totalParticipants - 1; // 보낸 사람 제외
+        chatCountRedisTemplate.opsForValue().set(unreadCountKey, String.valueOf(unreadCount));
+        chatCountRedisTemplate.expire(unreadCountKey, 12, TimeUnit.HOURS); // 12시간 후 자동 삭제
+
+        chatCountRedisTemplate.opsForSet().add(readBySetKey, String.valueOf(message.getSender().getId()));
+        chatCountRedisTemplate.expire(readBySetKey, 12, TimeUnit.HOURS); // 12시간 후 자동 삭제
+    }
+
+
+    /*
     private void updateRedisOnNewMessage(ChatRoomMessage message, int totalParticipants) {
         // 1. 대화 내역 캐시(Sorted Set)에 새 메시지 추가
         String historyKey = "chat:room:" + message.getChatRoom().getId() + ":messages";
+
         ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.fromEntity(message);
-        String messageJson = redisSerializer.serialize(messageDto);
         long score = message.getId(); // ID를 score로 사용
 
+        chatRedisTemplate.opsForZSet().add(historyKey, messageDto, score);
+
         // 지난 대화 내역을 시간 순서로, 그리고 특정 범위를 효율적으로 조회하기 위해 Redis의 Sorted Set 사용
-        redisTemplate.opsForZSet().add(historyKey, messageJson, score);
+        chatRedisTemplate.opsForZSet().add(historyKey, messageJson, score);
 
         // 2. 캐시 크기 관리 (오래된 메시지 삭제)
-        Long size = redisTemplate.opsForZSet().size(historyKey);
+        Long size = chatRedisTemplate.opsForZSet().size(historyKey);
         if (size != null && size > CACHE_MAX_SIZE) {
-            redisTemplate.opsForZSet().removeRange(historyKey, 0, size - CACHE_MAX_SIZE - 1);
+            chatRedisTemplate.opsForZSet().removeRange(historyKey, 0, size - CACHE_MAX_SIZE - 1);
         }
 
         // 3. 읽음 처리(unreadCount)를 위한 정보 초기화
