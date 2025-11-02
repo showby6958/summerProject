@@ -2,9 +2,7 @@ package com.portfolio.memo.chatroom.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portfolio.memo.RedisSerializer;
 import com.portfolio.memo.auth.CustomUserDetails;
-import com.portfolio.memo.auth.CustomUserDetailsService;
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
 import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
@@ -15,13 +13,16 @@ import com.portfolio.memo.chatroom.room.ChatRoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -168,14 +169,17 @@ public class ChatMessageService {
 
         // 보낸 사람을 제외한 참여자 수를 unreadCount로 설정 (Redis에 저장하려면 문자열(String)으로 변환해서 저장 -> String.valueOf() )
         int unreadCount = totalParticipants - 1;
-        redisTemplate.opsForValue().set(unreadCountKey, String.valueOf(unreadCount));
-        redisTemplate.expire(unreadCountKey, 24, TimeUnit.HOURS); // 24시간 후 자동 삭제
+        chatRedisTemplate.opsForValue().set(unreadCountKey, String.valueOf(unreadCount));
+        chatRedisTemplate.expire(unreadCountKey, 24, TimeUnit.HOURS); // 24시간 후 자동 삭제
 
         // 보낸 사람을 읽은 사람(readBy) Set에 추가(add) (message.getSender.getId() => 메시지를 보낸 사람 ID)
-        redisTemplate.opsForSet().add(readBySetKey, String.valueOf(message.getSender().getId()));
-        redisTemplate.expire(readBySetKey, 24, TimeUnit.HOURS); // 24시간 후 자동 삭제
+        chatRedisTemplate.opsForSet().add(readBySetKey, String.valueOf(message.getSender().getId()));
+        chatRedisTemplate.expire(readBySetKey, 24, TimeUnit.HOURS); // 24시간 후 자동 삭제
     }
+    */
 
+    /*
+    // 사용자가 메시지를 읽었을 때 호출
     @Transactional
     public ChatMessageDto markAsRead(Long messageId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
@@ -187,12 +191,12 @@ public class ChatMessageService {
         String unreadCountKey = "chat:message:" + messageId + ":unread";
 
         // 1. Redis Set에 사용자를 추가하고 성공 여부 확인 (Set 특성상 이미 존재하면 추가 안됨)
-        Long result = redisTemplate.opsForSet().add(readBySetKey, String.valueOf(user.getId()));
+        Long result = chatRedisTemplate.opsForSet().add(readBySetKey, String.valueOf(user.getId()));
         long unreadCount = -1; // 초기값 -1
 
         // 2. 처음 읽은 경우에만 unreadCount 1 감소
         if (result != null && result > 0) { // result > 0 -> 사용자 처음으로 메시지 읽음
-            Long decrementedCount = redisTemplate.opsForValue().decrement(unreadCountKey); // Redis에서 unreadCount 1감소하고 그 값을 가져옴
+            Long decrementedCount = chatRedisTemplate.opsForValue().decrement(unreadCountKey); // Redis에서 unreadCount 1감소하고 그 값을 가져옴
             unreadCount = (decrementedCount != null) ? decrementedCount : 0;
 
             // 4. (비동기) DB에 읽음 상태 영구 저장
@@ -200,7 +204,7 @@ public class ChatMessageService {
         } else {
             // 이미 읽은 경우, 현재 unreadCount 값을 Redis에서 가져옴
             // Redis에서 가져온 unreadCount(문자열)를 정수(Long.parseLong())로 변환해서 가져옴
-            String countStr = redisTemplate.opsForValue().get(unreadCountKey);
+            String countStr = chatCountRedisTemplate.opsForValue().get(unreadCountKey);
             unreadCount = (countStr != null) ? Long.parseLong(countStr) : 0;
         }
 
@@ -213,6 +217,46 @@ public class ChatMessageService {
                 .messageId(messageId)
                 .roomId(message.getChatRoom().getId())
                 .unreadCount((int) unreadCount)
+                .build();
+    }
+    */
+
+    // 사용자가 메시지를 읽었을 때 호출
+    @Transactional
+    public ChatMessageDto markAsRead(Long messageId, Long userId) {
+        String unreadCountKey = "chat:message:" + messageId + ":unread";
+        String readByKey = "chat:message:" + messageId + ":readBy";
+        // 1. 사용자가 이미 메시지를 읽었는지 확인
+        Boolean alreadyRead = chatCountRedisTemplate.opsForSet().isMember(readByKey, String.valueOf(userId));
+
+        long unreadCount;
+
+        // 2. 이미 읽은 경우와 처음 읽는 경우를 분기하여 처리
+        if (Boolean.TRUE.equals(alreadyRead)) {
+            // 이미 읽은 경우
+            String countStr = chatCountRedisTemplate.opsForValue().get(unreadCountKey);
+            unreadCount = (countStr != null) ? Long.parseLong(countStr) : 0;
+        } else {
+            // 처음 읽는 경우 - Redis Set에 사용자 ID 추가
+            chatCountRedisTemplate.opsForSet().add(readByKey, String.valueOf(userId)); //
+            // unreadCount를 1 감소 (atomic operation)
+            Long decrementedCount = chatCountRedisTemplate.opsForValue().decrement(unreadCountKey);
+            unreadCount = (decrementedCount != null) ? decrementedCount : 0;
+
+            // DB에 읽음 상태 비동기 저장
+            persistReadStatus(messageId, userId);
+        }
+
+        // 3. 응답 DTO 생성을 위해 메시지 정보 조회
+        ChatRoomMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new EntityNotFoundException("Message not found with id: " + messageId));
+
+        // 4. 최종 결과를 DTO로 만들어 반환
+        return ChatMessageDto.builder()
+                .type("READ")
+                .messageId(messageId)
+                .roomId(message.getChatRoom().getId())
+                .unreadCount((int)unreadCount)
                 .build();
     }
 
