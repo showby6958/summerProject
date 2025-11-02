@@ -300,17 +300,12 @@ public class ChatMessageService {
         ChatMessageDto updatedMessageDto = ChatMessageDto.from(updatedMessage);
         updatedMessageDto.setType("EDIT"); // 클라이언트가 메시지 수정을 인지하도록 타입 설정
 
-        // 6. WebSocket으로 채팅방에 있는 모든 클라이언트에게 수정된 메시지 전송
-        String destination = "topic/chat/room/" + updatedMessage.getChatRoom().getId();
-        messagingTemplate.convertAndSend(destination, updatedMessageDto);
-
-        // 7. 수정된 메시지 정보 반환
+        // 6. 수정된 메시지 정보 반환
         return updatedMessageDto;
     }
 
     @Transactional
-    public void deleteMessage(Long roomId, Long messageId, CustomUserDetails userDetails) {
-
+    public ChatMessageDto deleteMessage(Long roomId, Long messageId, CustomUserDetails userDetails) {
         // 1. 메시지 조회
         ChatRoomMessage message = chatMessageRepository.findById(messageId)
                 .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다." + messageId));
@@ -320,32 +315,28 @@ public class ChatMessageService {
             throw new MessageDeleteNotAllowed(messageId, userDetails.getUser().getId());
         }
 
-        // 3. Redis에서 삭제할 JSON을 미리 생성
-        String messageJsonToRemove = null;
-        ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.fromEntity(message);
-        messageJsonToRemove = redisSerializer.serialize(messageDto);
-
-        // 4. Soft Delete 방식
+        // 3. Soft Delete(DB) 방식
         message.setDeleted(true);
         message.setDeletedAt(LocalDateTime.now());
 
-        // 5. DB에 저장
-        ChatRoomMessage deleteMessage = chatMessageRepository.save(message);
+        // 4. DB에 저장
+        ChatRoomMessage deletedMessage = chatMessageRepository.save(message);
 
-        // 6. 미리 생성한 JSON으로 Redis 캐시에서 해당 메시지 제거
-        if (messageJsonToRemove != null) {
-            String historyKey = "chat:room:" + roomId + ":messages";
+        // 1. Redis 키 설정
+        String zsetKey = "chat:room:" + roomId + ":messages"; // 메시지 목록용 ZSET
+        String messageKey = "chat:room:" + messageId; // 개별 메시지 저장용 Key
 
-            // 제거 성공 확인용 로그
-             Long removedCount = redisTemplate.opsForZSet().remove(historyKey, messageJsonToRemove);
-             log.info("삭제 여부 확인 : {}", removedCount);
-        }
+        // 2. Redis 캐시에서 메시지 삭제
+        chatRedisTemplate.opsForZSet().remove(zsetKey, "message:" + messageId);
+        chatRedisTemplate.delete(messageKey);
 
-        // 7. DTO로 변환하여 WebSocket 전송
-        ChatMessageDto deleteMessageDto = ChatMessageDto.from(deleteMessage);
-        deleteMessageDto.setType("DELETE"); // 클라이언트가 메시지 삭제를 인지하도록 타입 설정
+        log.info("Redis 캐시에서 메시지 삭제 완료. roomId: {}, messageId: {}", roomId, messageId);
 
-        String destination = "/topic/chat/rooms/" + deleteMessage.getChatRoom().getId();
-        messagingTemplate.convertAndSend(destination, deleteMessageDto);
+        // 3. 클라이언트에게 반환할 DTO 구성
+        ChatMessageDto deletedMessageDto = ChatMessageDto.from(deletedMessage);
+        deletedMessageDto.setType("DELETE"); // 클라이언트가 메시지 삭제를 인지하도록 타입 설정
+
+        return deletedMessageDto;
     }
 }
+
