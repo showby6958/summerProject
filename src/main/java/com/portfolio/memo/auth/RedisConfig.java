@@ -1,12 +1,18 @@
 package com.portfolio.memo.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -33,6 +39,22 @@ public class RedisConfig {
     @Value("${spring.redis.chat.password}")
     private String chatRedisPassword;
 
+    //  GenericJackson2JsonRedisSerializer() 가 java.time 패키지의 시간 관련 객체(LocalDateTime, LocalDate) 를 지원하지 않아서
+    //  시간 객체를 직렬화 및 역직렬화 하려면 별도 모둘을 설정해야함
+    //  즉, JavaTimeModule이 등록된 ObjectMapper를 생성하고, 이 ObjectMapper를 GenericJackson2JsonRedisSerializer에
+    //  주입하여 RedisTemplate을 설정해야 한다.
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // LocalDateTime 타입을 올바르게 직렬화/역직렬화하기 위해 JavaTimeModule 등록
+        mapper.registerModule(new JavaTimeModule());
+        // 날짜를 타임스탬프(숫자)가 아닌 ISO-8601 형식의 문자열로 직렬화하도록 설정
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
+    }
+
+
     // --- JWT Redis 설정 ---
     @Bean(name = "jwtRedisConnectionFactory")
     public RedisConnectionFactory jwtRedisConnectionFactory() {
@@ -47,9 +69,11 @@ public class RedisConfig {
     }
 
     @Bean(name = "jwtRedisTemplate")
-    public RedisTemplate<String, String> jwtRedisTemplate() {
+    public RedisTemplate<String, String> jwtRedisTemplate(
+            @Qualifier("jwtRedisConnectionFactory") RedisConnectionFactory factory)
+    {
         RedisTemplate<String, String> template = new RedisTemplate<>();
-        template.setConnectionFactory(jwtRedisConnectionFactory());
+        template.setConnectionFactory(factory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new StringRedisSerializer());
         return template;
@@ -68,15 +92,27 @@ public class RedisConfig {
         return lettuceConnectionFactory;
     }
 
-    // 채팅 메시지(JSON) JSON 직렬화 진행 (<키, 값> ->  <String, Object> 로 설정)
+    // 채팅 메시지(JSON) JSON 직렬화 진행 (<키, 값> ->  <String, String> 로 설정)
     @Bean(name = "chatRedisTemplate")
-    public RedisTemplate<String, Object> chatRedisTemplate() {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(chatRedisConnectionFactory());
+    public RedisTemplate<String, String> chatRedisTemplate(
+            @Qualifier("chatRedisConnectionFactory") RedisConnectionFactory factory
+    ) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
         template.setKeySerializer(new StringRedisSerializer());
-        // GenericJackson2JsonRedisSerializer() -> 객체를 JSON 형태로 직렬화하는 구현체
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
         return template;
     }
 
+    // 읽음 상태/카운트 전용 RedisTemplate<String, String>
+    // *Redis 인스턴스가 아님* , Redis랑 통신하기 위한 클라이언트 객체만 하나더 만든거임
+    // 여러 RedisTemplate는 같은 Redis 인스턴스를 가리킬 수 있음. 하지만 제네릭 타입, Serializer, 목적을 다르게 설정 가능
+    @Bean(name = "chatCountRedisTemplate")
+    public StringRedisTemplate chatCountRedisTemplate(
+            @Qualifier("chatRedisConnectionFactory") RedisConnectionFactory factory
+    ) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(factory);
+        return template;
+    }
 }

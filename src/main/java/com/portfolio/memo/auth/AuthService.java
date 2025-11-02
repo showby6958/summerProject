@@ -18,18 +18,32 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
-
-    // jwtRedisTemplate 빈(Bean) 등록
-    // (같은 이름의 Bean이 여러개(RedisTemplate) 있을 경우 Spring에게 특정 빈(jwtRedisTemplate)을 사용한다고 지정하는 코드임)
-    @Qualifier("jwtRedisTemplate")
     private final RedisTemplate<String, String> jwtRedisTemplate;
+
+    // @Autowired로 자동 주입 권장 X. spring이 어떤 Bean에 주입해야하는지 못찾음
+    // @Qualifier를 final 필드에 붙이는 것보다  @Qualifier도 생성자 매개변수 쪽에 붙이는게 좋음
+    public AuthService (
+        UserRepository userRepository,
+        PasswordEncoder passwordEncoder,
+        JwtTokenProvider jwtTokenProvider,
+        AuthenticationManager authenticationManager,
+        // jwtRedisTemplate 빈(Bean) 등록
+        // (같은 이름의 Bean이 여러개(RedisTemplate) 있을 경우 Spring에게 특정 빈(jwtRedisTemplate)을 사용한다고 지정하는 코드임)
+        @Qualifier("jwtRedisTemplate") RedisTemplate<String, String> jwtRedisTemplate
+    ) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.authenticationManager = authenticationManager;
+        this.jwtRedisTemplate = jwtRedisTemplate;
+
+    }
+
 
     @Transactional
     public void register(RegisterRequest request) {
