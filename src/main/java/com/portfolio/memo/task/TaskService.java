@@ -95,6 +95,7 @@ public class TaskService {
     }
 
     // 업무 삭제
+    @Transactional
     public void deleteTask(Long taskId, CustomUserDetails currentUser) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException(taskId));
@@ -107,6 +108,7 @@ public class TaskService {
     }
 
     // 업무 수정
+    @Transactional
     public TaskResponse updateTask(Long taskId, TaskUpdateRequest request, CustomUserDetails currentUser) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException(taskId));
