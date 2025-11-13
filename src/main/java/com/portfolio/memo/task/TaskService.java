@@ -6,8 +6,10 @@ import com.portfolio.memo.auth.UserRepository;
 import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskResponse;
+import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,6 +104,31 @@ public class TaskService {
         }
 
         taskRepository.delete(task);
+    }
+
+    // 업무 수정
+    public TaskResponse updateTask(Long taskId, TaskUpdateRequest request, CustomUserDetails currentUser) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException(taskId));
+
+        // 현재 로그인한 사용자가 해당 업무의 담당자인지 확인
+        if (!task.getAssignee().getId().equals(currentUser.getUser().getId())) {
+            throw new IllegalArgumentException("해당 업무를 수정할 권한이 없습니다.");
+        }
+
+        // 담당자를 변경하는 경우, 새로운 담당자 정보를 조회
+        User newAssignee = null;
+        if (request.getAssigneeId() != null) {
+            newAssignee = userRepository.findById(request.getAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException(request.getAssigneeId()));
+        }
+
+        // Task 엔티티에 update 매서드 호출해서 필드 업데이트
+        task.update(request, newAssignee);
+
+        Task updatedTask = taskRepository.save(task);
+
+        return TaskResponse.from(updatedTask);
     }
 
 }

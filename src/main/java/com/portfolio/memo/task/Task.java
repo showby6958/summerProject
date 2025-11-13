@@ -1,10 +1,12 @@
 package com.portfolio.memo.task;
 
 import com.portfolio.memo.auth.User;
+import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Entity
 @Table(name = "tasks")
@@ -59,5 +61,15 @@ public class Task {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // 업무 수정 로직
+    public void update(TaskUpdateRequest request, User newAssignee) {
+        Optional.ofNullable(request.getTitle()).ifPresent(this::setTitle);
+        Optional.ofNullable(request.getDescription()).ifPresent(this::setDescription);
+        Optional.ofNullable(request.getStatus()).ifPresent(this::setStatus);
+        Optional.ofNullable(request.getPriority()).ifPresent(this::setPriority);
+        Optional.ofNullable(request.getDueDate()).ifPresent(this::setDueDate);
+        Optional.ofNullable(newAssignee).ifPresent(this::setAssignee);
     }
 }

@@ -3,6 +3,7 @@ package com.portfolio.memo.task;
 import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskResponse;
+import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,7 +46,7 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
-    @DeleteMapping("/delete")
+    @DeleteMapping("/delete/{taskId}")
     public ResponseEntity<Void> deleteTask(
             @PathVariable Long taskId,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -54,5 +55,14 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/update/{taskId}")
+    public ResponseEntity<TaskResponse> updateTask(
+            @PathVariable Long taskId,
+            @RequestBody TaskUpdateRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        TaskResponse updatedTask = taskService.updateTask(taskId, request, currentUser);
+        return ResponseEntity.ok(updatedTask);
+    }
 
 }
