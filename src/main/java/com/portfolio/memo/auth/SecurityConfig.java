@@ -54,7 +54,8 @@ public class SecurityConfig {
                                 "/register.html",
                                 "/main.html",
                                 "/ws-chat/**",
-                                "/ws-native/**"
+                                "/ws-native/**",
+                                "/api/tasks/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

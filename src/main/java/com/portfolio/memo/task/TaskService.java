@@ -5,9 +5,13 @@ import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
 import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
+import com.portfolio.memo.task.dto.TaskResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +20,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
+    // 업무 생성
     @Transactional
     public Task createTask(TaskCreateRequest request, CustomUserDetails currentUser) {
 
@@ -42,4 +47,61 @@ public class TaskService {
 
         return taskRepository.save(task);
     }
+
+    // 업무 검색
+    @Transactional(readOnly = true)
+    public List<TaskResponse> searchTask(
+            Boolean myTask,
+            TaskStatus status,
+            String title,
+            String assigneeName,
+            TaskPriority priority,
+            CustomUserDetails currentUser) {
+
+        Specification<Task> spec = Specification.allOf();
+
+        // 내 업무만 보기 (currentUser = assignee)
+        if (Boolean.TRUE.equals(myTask)) {
+            spec = spec.and(TaskSpecification.withAssignee(currentUser.getUser()));
+        }
+
+        // 상태 필터링
+        if (status != null) {
+            spec = spec.and(TaskSpecification.withStatus(status));
+        }
+
+        // 제목 검색
+        if (title != null && !title.isBlank()) {
+            spec = spec.and(TaskSpecification.withTitleContaining(title));
+        }
+
+        // 담당자 이름 검색
+        if (assigneeName != null && !assigneeName.isBlank()) {
+            spec = spec.and(TaskSpecification.withAssigneeNameContaining(assigneeName));
+        }
+
+        // 우선도 필터링
+        if (priority != null) {
+            spec = spec.and(TaskSpecification.withPriority(priority));
+        }
+
+        List<Task> tasks = taskRepository.findAll(spec);
+
+        return tasks.stream()
+                .map(TaskResponse::from)
+                .toList();
+    }
+
+    // 업무 삭제
+    public void deleteTask(Long taskId, CustomUserDetails currentUser) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException(taskId));
+
+        if (!task.getAssignee().getId().equals(currentUser.getUser().getId())) {
+            throw new IllegalArgumentException("해당 업무를 삭제할 권한이 없습니다.");
+        }
+
+        taskRepository.delete(task);
+    }
+
 }

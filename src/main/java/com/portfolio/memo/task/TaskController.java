@@ -6,12 +6,10 @@ import com.portfolio.memo.task.dto.TaskResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -20,7 +18,7 @@ public class TaskController {
 
     private final TaskService taskService;
 
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<TaskResponse> createTask(
             @RequestBody TaskCreateRequest request,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
@@ -33,4 +31,28 @@ public class TaskController {
 
         return ResponseEntity.created(URI.create("/api/tasks/" + response.getId())).body(response);
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<TaskResponse>> searchTask(
+            @RequestParam(required = false) Boolean myTask,
+            @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String assigneeName,
+            @RequestParam(required = false) TaskPriority priority,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        List<TaskResponse> tasks = taskService.searchTask(myTask, status, title, assigneeName, priority, currentUser);
+        return ResponseEntity.ok(tasks);
+    }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<Void> deleteTask(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        taskService.deleteTask(taskId, currentUser);
+        return ResponseEntity.noContent().build();
+    }
+
+
 }
