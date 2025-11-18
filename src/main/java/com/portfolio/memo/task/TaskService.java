@@ -3,17 +3,26 @@ package com.portfolio.memo.task;
 import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.auth.User;
 import com.portfolio.memo.auth.UserRepository;
+import com.portfolio.memo.file.AttachedFile;
+import com.portfolio.memo.file.AttachedFileRepository;
+import com.portfolio.memo.file.AttachedFileService;
 import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskResponse;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,10 +30,11 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final AttachedFileService attachedFileService;
 
     // 업무 생성
     @Transactional
-    public Task createTask(TaskCreateRequest request, CustomUserDetails currentUser) {
+    public Task createTask(TaskCreateRequest request, List<MultipartFile> files, CustomUserDetails currentUser) {
 
        User assignee;
        // 요청에 담당자 Id가 있으면, 해당 사용자를 담당자로 지정
@@ -47,7 +57,12 @@ public class TaskService {
                 .status(TaskStatus.TODO) // 생성 시 기본 상태는 'TODO'
                 .build();
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task); // Task 만 저장
+
+        // 파일 업로드 로직은 AttachedFileService 에 위임
+        attachedFileService.uploadFiles(savedTask, files);
+
+        return savedTask;
     }
 
     // 업무 검색

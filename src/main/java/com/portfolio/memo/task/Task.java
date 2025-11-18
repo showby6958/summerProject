@@ -1,11 +1,14 @@
 package com.portfolio.memo.task;
 
 import com.portfolio.memo.auth.User;
+import com.portfolio.memo.file.AttachedFile;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Entity
@@ -51,6 +54,11 @@ public class Task {
     // 업데이트 시간
     @Column(name = "updated_at", updatable = false)
     private LocalDateTime updatedAt;
+
+    // 첨부 파일
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<AttachedFile> attachedFiles = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

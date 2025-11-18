@@ -5,9 +5,12 @@ import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskResponse;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.List;
@@ -19,13 +22,14 @@ public class TaskController {
 
     private final TaskService taskService;
 
-    @PostMapping("/create")
+    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TaskResponse> createTask(
-            @RequestBody TaskCreateRequest request,
+            @RequestPart("taskCreateRequest") TaskCreateRequest request,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files, // 파일 리스트
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
         // 업무 생성 서비스
-        Task createdTask = taskService.createTask(request, currentUser);
+        Task createdTask = taskService.createTask(request, files, currentUser);
 
         // 응답 DTO로 변환
         TaskResponse response = TaskResponse.from(createdTask);
