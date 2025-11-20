@@ -2,6 +2,7 @@ package com.portfolio.memo.task;
 
 import com.portfolio.memo.auth.CustomUserDetails;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
+import com.portfolio.memo.task.dto.TaskDetailResponse;
 import com.portfolio.memo.task.dto.TaskResponse;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +68,16 @@ public class TaskController {
 
         TaskResponse updatedTask = taskService.updateTask(taskId, request, currentUser);
         return ResponseEntity.ok(updatedTask);
+    }
+
+    @GetMapping("/{taskId}")
+    public ResponseEntity<TaskDetailResponse> getTaskDetail(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        TaskDetailResponse response = taskService.getTaskDetail(taskId, currentUser);
+
+        return ResponseEntity.ok(response);
     }
 
 }

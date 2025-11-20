@@ -8,6 +8,7 @@ import com.portfolio.memo.file.AttachedFileRepository;
 import com.portfolio.memo.file.AttachedFileService;
 import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
+import com.portfolio.memo.task.dto.TaskDetailResponse;
 import com.portfolio.memo.task.dto.TaskResponse;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -146,6 +147,14 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
 
         return TaskResponse.from(updatedTask);
+    }
+
+    @Transactional(readOnly = true)
+    public TaskDetailResponse getTaskDetail(Long taskId, CustomUserDetails currentUser) {
+        Task task = taskRepository.findByIdWithFiles(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException(taskId));
+
+        return TaskDetailResponse.from(task);
     }
 
 }
