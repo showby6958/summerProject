@@ -1,5 +1,7 @@
 package com.portfolio.memo.file;
 
+import com.portfolio.memo.file.dto.AttachedFileDownloadDto;
+import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.Task;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,6 +70,30 @@ public class AttachedFileService {
             } catch (IOException e) {
                 throw new RuntimeException("파일을 저장할 수 없습니다: " + originalFileName, e);
             }
+        }
+    }
+
+    // 파일 다운로드 DTO 조회
+    @Transactional(readOnly = true)
+    public AttachedFileDownloadDto getDownloadInfo(Long fileId) {
+        AttachedFile file = attachedFileRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException(fileId));
+
+        return AttachedFileDownloadDto.from(file);
+    }
+
+    // 실제 파일데이터를 byte[] 로 읽기
+    @Transactional(readOnly = true)
+    public byte[] loadFile(Long fileId) {
+        AttachedFile file = attachedFileRepository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException(fileId));
+
+        Path filePath = Paths.get(uploadDir).resolve(file.getStoredFileName()).toAbsolutePath();
+
+        try {
+            return Files.readAllBytes(filePath);
+        } catch (IOException e) {
+            throw new RuntimeException("파일을 읽을 수 없습니다.: " + file.getOriginalFileName(), e);
         }
     }
 }
