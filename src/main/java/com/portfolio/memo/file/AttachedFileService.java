@@ -96,4 +96,12 @@ public class AttachedFileService {
             throw new RuntimeException("파일을 읽을 수 없습니다.: " + file.getOriginalFileName(), e);
         }
     }
+
+    // 업무 상세 페이지에서 파일 목록 조회용
+    public List<AttachedFileDownloadDto> getTaskFiles(long taskId) {
+        return attachedFileRepository.findFilesByTaskId(taskId)
+                .stream()
+                .map(AttachedFileDownloadDto::from)
+                .toList();
+    }
 }
