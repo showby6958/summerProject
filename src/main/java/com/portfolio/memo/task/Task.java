@@ -1,6 +1,7 @@
 package com.portfolio.memo.task;
 
 import com.portfolio.memo.auth.User;
+import com.portfolio.memo.comment.Comment;
 import com.portfolio.memo.file.AttachedFile;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import jakarta.persistence.*;
@@ -59,6 +60,9 @@ public class Task {
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<AttachedFile> attachedFiles = new ArrayList<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

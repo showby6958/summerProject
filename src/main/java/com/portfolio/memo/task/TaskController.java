@@ -1,6 +1,10 @@
 package com.portfolio.memo.task;
 
 import com.portfolio.memo.auth.CustomUserDetails;
+import com.portfolio.memo.comment.CommentService;
+import com.portfolio.memo.comment.dto.CommentDto;
+import com.portfolio.memo.file.AttachedFileService;
+import com.portfolio.memo.file.dto.AttachedFileDownloadDto;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskDetailResponse;
 import com.portfolio.memo.task.dto.TaskResponse;
@@ -22,7 +26,10 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final AttachedFileService attachedFileService;
+    private final CommentService commentService;
 
+    // 업무 생성
     @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TaskResponse> createTask(
             @RequestPart("taskCreateRequest") TaskCreateRequest request,
@@ -38,6 +45,7 @@ public class TaskController {
         return ResponseEntity.created(URI.create("/api/tasks/" + response.getId())).body(response);
     }
 
+    // 업무 검색
     @GetMapping("/search")
     public ResponseEntity<List<TaskResponse>> searchTask(
             @RequestParam(required = false) Boolean myTask,
@@ -51,6 +59,7 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
+    // 업무 삭제
     @DeleteMapping("/delete/{taskId}")
     public ResponseEntity<Void> deleteTask(
             @PathVariable Long taskId,
@@ -60,6 +69,7 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
+    // 업무 수정
     @PutMapping("/update/{taskId}")
     public ResponseEntity<TaskResponse> updateTask(
             @PathVariable Long taskId,
@@ -70,14 +80,31 @@ public class TaskController {
         return ResponseEntity.ok(updatedTask);
     }
 
+
+
+    // 업무 조회용 (1: 업무 기본 상세 조회, 2: 업무 첨부파일 조회, 3: 업무 댓글 조회)
+    // 1. 업무 기본 상세 조회
     @GetMapping("/{taskId}")
     public ResponseEntity<TaskDetailResponse> getTaskDetail(
-            @PathVariable Long taskId,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
+            @PathVariable Long taskId) {
 
-        TaskDetailResponse response = taskService.getTaskDetail(taskId, currentUser);
+        return ResponseEntity.ok(taskService.getTaskDetail(taskId));
+    }
 
-        return ResponseEntity.ok(response);
+    // 2. 업무 첨부파일 조회
+    @GetMapping("/{taskId}/files")
+    public ResponseEntity<List<AttachedFileDownloadDto>> getTaskFiles(
+            @PathVariable Long taskId) {
+
+        return ResponseEntity.ok(attachedFileService.getTaskFiles(taskId));
+    }
+
+    // 3. 업무 댓글 조회
+    @GetMapping("/{taskId}/comments")
+    public ResponseEntity<List<CommentDto>> getTaskComments(
+            @PathVariable Long taskId) {
+
+        return ResponseEntity.ok(commentService.getTaskComment(taskId));
     }
 
 }

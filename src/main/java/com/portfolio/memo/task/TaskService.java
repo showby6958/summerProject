@@ -149,9 +149,10 @@ public class TaskService {
         return TaskResponse.from(updatedTask);
     }
 
+    // 업무 상세에서 상세 정보 조회 용
     @Transactional(readOnly = true)
-    public TaskDetailResponse getTaskDetail(Long taskId, CustomUserDetails currentUser) {
-        Task task = taskRepository.findByIdWithFiles(taskId)
+    public TaskDetailResponse getTaskDetail(Long taskId) {
+        Task task = taskRepository.findTaskDetail(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException(taskId));
 
         return TaskDetailResponse.from(task);

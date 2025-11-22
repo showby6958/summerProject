@@ -9,6 +9,8 @@ import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
-    @Query("SELECT t FROM Task t LEFT JOIN FETCH t.attachedFiles WHERE t.id = :taskId")
-    Optional<Task> findByIdWithFiles(@Param("taskId") Long taskId);
+    @Query("SELECT t FROM Task t " +
+            "LEFT JOIN FETCH t.assignee " +
+            "WHERE t.id = :taskId")
+    Optional<Task> findTaskDetail(@Param("taskId") Long taskId);
 }
