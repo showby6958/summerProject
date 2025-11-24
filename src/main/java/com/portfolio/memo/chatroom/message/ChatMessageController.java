@@ -1,10 +1,7 @@
 package com.portfolio.memo.chatroom.message;
 
 import com.portfolio.memo.auth.CustomUserDetails;
-import com.portfolio.memo.chatroom.message.dto.ChatMessageDto;
-import com.portfolio.memo.chatroom.message.dto.ChatMessageHistoryDto;
-import com.portfolio.memo.chatroom.message.dto.MessageEditRequestDto;
-import com.portfolio.memo.chatroom.message.dto.ReadMessageRequest;
+import com.portfolio.memo.chatroom.message.dto.*;
 import com.portfolio.memo.chatroom.room.ChatRoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +22,7 @@ public class ChatMessageController {
 
     private final SimpMessageSendingOperations messagingTemplate;
     private final ChatMessageService chatMessageService;
+    private final ChatMessageReadStatusService chatMessageReadStatusService;
 
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(ChatMessageDto chatMessageDto, Authentication authentication) {
@@ -49,17 +47,15 @@ public class ChatMessageController {
     // 메시지 읽음 처리 엔드포인트
     // messageId, roomId를 보내면 서버는 읽음 처리를 하고 해당 방 구독자에게 읽음 상태가 업데이트되었음을 알림
     @MessageMapping("/chat.readMessage")
-    public void readMessage(@Payload ReadMessageRequest request, CustomUserDetails customUserDetails) {
+    public void readMessage(@Payload ReadMessageRequest request, CustomUserDetails userDetails) {
 
+        Long userId = userDetails.getUser().getId();
 
-        Long userId = customUserDetails.getUser().getId();
+        // 1. 읽음 상태 저장
+        ReadMessageResponse response = chatMessageReadStatusService.markAsRead(request.getMessageId(), userId);
 
-        // 1. chatMessageService 호출해서 메시지 읽음으로 표시, 업데이트된 정보 받음
-        ChatMessageDto updatedMessageDto = chatMessageService.markAsRead(request.getMessageId(), userId);
-
-        // 2. 해당 채티방의 '/read' 토픽을 구독하는 클라이언트에게 업데이트된 정보 전송
-        // 클라이언트는 이 정보를 받아서 messageId에 해당하는 메시지의 unreadCount를 업데이트
-        messagingTemplate.convertAndSend("/topic/chat/rooms/" + request.getRoomId(), updatedMessageDto);
+        // 2. 업데이트된 readCount를 브로드캐스트
+        messagingTemplate.convertAndSend("/topic/chat/rooms/" + request.getRoomId() + "/read", response);
     }
 
 
@@ -98,4 +94,5 @@ public class ChatMessageController {
         return ResponseEntity.ok().build();
     }
 }
+
 

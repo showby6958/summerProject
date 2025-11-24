@@ -5,8 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChatMessageReadStatusRepository extends JpaRepository<ChatMessageReadStatus, Long> {
 
-    boolean existsByChatMessageAndUser(ChatRoomMessage chatMessage, User user);
-
-    int countByChatMessage(ChatRoomMessage chatMessage);
-
+    boolean existsByChatMessageIdAndUserId(Long messageId, Long userId);
 }
