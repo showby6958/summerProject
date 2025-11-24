@@ -9,7 +9,9 @@ import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.Task;
 import com.portfolio.memo.task.TaskRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,6 +23,7 @@ public class CommentService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
+    @Transactional
     public CommentDto createComment(Long taskId, CommentCreateRequest request, CustomUserDetails currentUser) {
 
         Task task = taskRepository.findById(taskId)
@@ -41,10 +44,27 @@ public class CommentService {
     }
 
     // 업무 상세에서 댓글 조회 용
+    @Transactional(readOnly = true)
     public List<CommentDto> getTaskComment(Long taskId) {
         return commentRepository.findCommentsByTaskId(taskId)
                 .stream()
                 .map(CommentDto::from)
                 .toList();
     }
+
+    @Transactional
+    public void deleteComment(Long commentId, CustomUserDetails currentUser) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException(commentId));
+
+        boolean isAuthor = comment.getUser().getId().equals(currentUser.getUser().getId());
+
+        if (!isAuthor) {
+            throw new AccessDeniedException("이 댓글을 삭제할 권한이 없습니다.");
+        }
+
+        commentRepository.delete(comment);
+
+    }
+
 }
