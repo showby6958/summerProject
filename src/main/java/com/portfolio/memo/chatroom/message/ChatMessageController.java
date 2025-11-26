@@ -36,7 +36,7 @@ public class ChatMessageController {
                 chatMessageDto.getMessage()
         );
 
-        ChatMessageHistoryDto broadcastMessage = ChatMessageHistoryDto.fromEntity(savedMessage);
+        ChatMessageHistoryDto broadcastMessage = ChatMessageHistoryDto.from(savedMessage);
 
         // 3. 해당 채팅방을 구독하는 모든 클라이언트에게 메시지 브로드캐스팅
         messagingTemplate.convertAndSend("/topic/chat/rooms/" + savedMessage.getChatRoom().getId(), broadcastMessage);
@@ -71,7 +71,7 @@ public class ChatMessageController {
         ChatMessageDto updatedMessageDto = chatMessageService.editMessage(roomId, messageId, messageEditRequestDto, userDetails);
 
         // 2. WebSocket으로 채팅방에 있는 모든 클라이언트에게 수정된 메시지 전송
-        String destination = "topic/chat/rooms/" + updatedMessageDto.getRoomId();
+        String destination = "/topic/chat/rooms/" + updatedMessageDto.getRoomId();
         messagingTemplate.convertAndSend(destination, updatedMessageDto);
 
         return ResponseEntity.ok(updatedMessageDto);
