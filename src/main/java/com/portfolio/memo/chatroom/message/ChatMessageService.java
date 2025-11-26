@@ -74,9 +74,9 @@ public class ChatMessageService {
         Long messageId = message.getId();
 
         // Redis 키 구성
-        String zsetKey = "chat:room:" + roomId + ":messages"; // 메시지 정렬용
-        String messageKey = "chat:message:" + messageId; // 실제 메시지 내용 저장
-        ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.fromEntity(message);
+        String zsetKey = "chat:room:" + roomId + ":messages"; // 채팅방의 zsetKey
+        String messageKey = "chat:message" + messageId; // 실제 메시지 내용 저장
+        ChatMessageHistoryDto messageDto = ChatMessageHistoryDto.from(message);
 
         try {
             // 1. Dto -> JSON 문자열
@@ -90,7 +90,8 @@ public class ChatMessageService {
                     ? message.getSentAt().toEpochSecond(ZoneOffset.ofHours(9))
                     : messageId.doubleValue();
 
-            chatRedisTemplate.opsForZSet().add(zsetKey, "message:" + messageId, score);
+            // 실제 메시지 데이터 저장 경로: messageKey (zset의 member 경로랑 똑같게 매핑)
+            chatRedisTemplate.opsForZSet().add(zsetKey, "chat:message" + messageId, score);
 
             // 오래된 메시지 캐시 관리
             Long size = chatRedisTemplate.opsForZSet().size(zsetKey);
@@ -129,9 +130,30 @@ public class ChatMessageService {
         ChatMessageDto updatedMessageDto = ChatMessageDto.from(updatedMessage);
         updatedMessageDto.setType("EDIT"); // 클라이언트가 메시지 수정을 인지하도록 타입 설정
 
-        // 6. 수정된 메시지 정보 반환
+        // 6. Redis 캐싱 (Write-Through)
+        updateMessageCache(updatedMessage);
+
         return updatedMessageDto;
     }
+
+    private void updateMessageCache(ChatRoomMessage updatedMessage) {
+
+        String messageKey = "chat:message" + updatedMessage.getId();
+
+        try {
+            // 1. 메시지 DTO -> JSON 변환
+            ChatMessageHistoryDto dto = ChatMessageHistoryDto.from(updatedMessage);
+            String updatedMessageJson = objectMapper.writeValueAsString(dto);
+
+            // 2. 새 메시지 JSON으로 Redis에 덮어쓰기 (Write-Through)
+            chatRedisTemplate.opsForValue().set(messageKey, updatedMessageJson);
+
+            log.info("Redis 캐시 메시지 업데이트 완료: {}", messageKey);
+        } catch (JsonProcessingException e) {
+            log.error("메시지 수정 Redis 반영 실패: {}", updatedMessage.getId(), e);
+        }
+    }
+
 
     @Transactional
     public ChatMessageDto deleteMessage(Long roomId, Long messageId, CustomUserDetails userDetails) {
@@ -156,7 +178,7 @@ public class ChatMessageService {
         String messageKey = "chat:room:" + messageId; // 개별 메시지 저장용 Key
 
         // 2. Redis 캐시에서 메시지 삭제
-        chatRedisTemplate.opsForZSet().remove(zsetKey, "message:" + messageId);
+        chatRedisTemplate.opsForZSet().remove(zsetKey, "chat:message" + messageId);
         chatRedisTemplate.delete(messageKey);
 
         log.info("Redis 캐시에서 메시지 삭제 완료. roomId: {}, messageId: {}", roomId, messageId);
