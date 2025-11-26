@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter;
 public class ChatMessageDto {
     private String type;
     private Long roomId;
-    private String sender;
+    private String senderName;
     private String message;
     private String sentAt;
     private String editedAt;
@@ -23,11 +23,11 @@ public class ChatMessageDto {
     private boolean isDeleted;
 
     @Builder
-    public ChatMessageDto(String type, Long roomId, String sender, String message, String sentAt, String editedAt, Long messageId, boolean isDeleted) {
+    public ChatMessageDto(String type, Long roomId, String senderName, String message, String sentAt, String editedAt, Long messageId, boolean isDeleted) {
         this.type = type;
         this.roomId = roomId;
         this.messageId = messageId;
-        this.sender = sender;
+        this.senderName = senderName;
         this.message = message;
         this.sentAt = sentAt;
         this.editedAt = editedAt;
@@ -44,7 +44,7 @@ public class ChatMessageDto {
         return ChatMessageDto.builder()
                 .messageId(chatRoomMessage.getId())
                 .roomId(chatRoomMessage.getChatRoom().getId())
-                .sender(chatRoomMessage.getSender().getName())
+                .senderName(chatRoomMessage.getSender().getName())
                 .message(chatRoomMessage.getMessage())
                 .sentAt(chatRoomMessage.getSentAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
                 .editedAt(editedTime)
