@@ -23,7 +23,7 @@ public class ChatRoomResponse {
     // User 객체들을 모두 이름(String)으로 변환한 리스트 생성
     // Set<User>  ->  List<String> 변환
     @Builder
-    public static ChatRoomResponse fromEntity(ChatRoom chatRoom) {
+    public static ChatRoomResponse from(ChatRoom chatRoom) {
         List<String> participantNames = chatRoom.getParticipants().stream()
                 .map(User::getName)
                 .collect(Collectors.toList());
