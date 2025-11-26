@@ -57,7 +57,7 @@ public class ChatRoomService {
 
         ChatRoom saveRoom = chatRoomRepository.save(newRoom);
 
-        return ChatRoomResponse.fromEntity(saveRoom);
+        return ChatRoomResponse.from(saveRoom);
     }
 
     public List<ChatRoomInfo> getUserChatRooms(String userEmail) {
@@ -108,7 +108,6 @@ public class ChatRoomService {
             for (String messageKey : messageKeys) {
                 // "message:{id}" 형태이므로 그대로 get()
                 String messageJson = chatRedisTemplate.opsForValue().get(messageKey);
-
                 if (messageJson != null) {
                     try {
                         ChatMessageHistoryDto dto = objectMapper.readValue(messageJson, ChatMessageHistoryDto.class);
@@ -131,7 +130,7 @@ public class ChatRoomService {
 
         // DB에서 가져온 메시지를 클라이언트가 사용할 ChatMessageHistoryDto로 변환
         List<ChatMessageHistoryDto> chatHistory = messagesFromDb.stream()
-                .map(ChatMessageHistoryDto::fromEntity)
+                .map(ChatMessageHistoryDto::from)
                 .collect(Collectors.toList());
 
         // 5. DB에서 가져온 데이터로 Redis 캐시 채우기
@@ -144,13 +143,12 @@ public class ChatRoomService {
                 log.error("메시지 JSON 직렬화 실패: {}", dto.getMessageId(), e);
                 continue;
             }
-
             // 메시지 본문 저장
             chatRedisTemplate.opsForValue().set(messageKey, messageJson);
 
             // ZSET에 추가 (정렬 기준: sentAt timestamp)
             double score = dto.getSentAt().toEpochSecond(ZoneOffset.ofHours(9));
-            chatRedisTemplate.opsForZSet().add(zsetKey, "message:" + dto.getMessageId(), score);
+            chatRedisTemplate.opsForZSet().add(zsetKey, messageKey, score);
         }
 
         // 캐시 만료 시간 설정
