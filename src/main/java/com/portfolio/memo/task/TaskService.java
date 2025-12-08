@@ -6,6 +6,9 @@ import com.portfolio.memo.auth.UserRepository;
 import com.portfolio.memo.file.AttachedFile;
 import com.portfolio.memo.file.AttachedFileRepository;
 import com.portfolio.memo.file.AttachedFileService;
+import com.portfolio.memo.notification.NotificationPublisher;
+import com.portfolio.memo.notification.dto.NotificationEventDto;
+import com.portfolio.memo.notification.dto.NotificationEventType;
 import com.portfolio.memo.task.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskDetailResponse;
@@ -22,7 +25,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -32,6 +37,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final AttachedFileService attachedFileService;
+    private final NotificationPublisher notificationPublisher;
 
     // 업무 생성
     @Transactional
@@ -157,5 +163,36 @@ public class TaskService {
 
         return TaskDetailResponse.from(task);
     }
+
+//
+//    @Transactional
+//    // 업무 팀원 배정 + 업무 배정 알림(담당자 알림 X)
+//    public Task assignMembers(Long taskId, List<Long> memberIds) {
+//
+//        Task task = taskRepository.findById(taskId)
+//                .orElseThrow(() -> new RuntimeException("Task not found"));
+//
+//        List<User> members = userRepository.findAllById(memberIds);
+//
+//        // task에 팀원 저장
+//        task.setMembers(members);
+//        taskRepository.save(task);
+//
+//        // 여러명의 팀원에게 Redis Publish로 1명씩 전송(Redis Pub/Sub는 한 번에 1명에게만 전송되어야함)
+//        for (User member : members) {
+//            NotificationEventDto event = NotificationEventDto.builder()
+//                    .userId(member.getId())
+//                    .type(NotificationEventType.TASK_ASSIGNED)
+//                    .message("새로운 업무가 배정되었습니다.")
+//                    .data(Map.of("taskId", taskId))
+//                    .timestamp(System.currentTimeMillis())
+//                    .build();
+//
+//            // Redis Publish
+//            notificationPublisher.publish(event);
+//        }
+//
+//        return task;
+//    }
 
 }

@@ -38,6 +38,16 @@ public class Task {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    // 팀원
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "task_members",
+            joinColumns = @JoinColumn(name = "task_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @Builder.Default
+    private List<User> members = new ArrayList<>();
+
     // 업무 처리 상태 (TODO/IN_PROGRESS/DONE)
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

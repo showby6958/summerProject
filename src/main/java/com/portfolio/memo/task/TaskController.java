@@ -5,12 +5,12 @@ import com.portfolio.memo.comment.CommentService;
 import com.portfolio.memo.comment.dto.CommentDto;
 import com.portfolio.memo.file.AttachedFileService;
 import com.portfolio.memo.file.dto.AttachedFileDownloadDto;
+import com.portfolio.memo.notification.dto.AssignMemberRequestDto;
 import com.portfolio.memo.task.dto.TaskCreateRequest;
 import com.portfolio.memo.task.dto.TaskDetailResponse;
 import com.portfolio.memo.task.dto.TaskResponse;
 import com.portfolio.memo.task.dto.TaskUpdateRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -107,4 +107,15 @@ public class TaskController {
         return ResponseEntity.ok(commentService.getTaskComment(taskId));
     }
 
-}
+//
+//    @PostMapping("/{taskId}/assign")
+//    public ResponseEntity<Void> assignMembers(
+//            @PathVariable Long taskId,
+//            @RequestBody AssignMemberRequestDto request) {
+//
+//        taskService.assignMembers(taskId, request.getMemberIds());
+//
+//        return ResponseEntity.ok().build();
+//    }
+//
+//}
