@@ -1,0 +1,36 @@
+plugins {
+    id 'java-library' // 공통 모둘을 "라이브러리"로 관리
+    id 'io.spring.dependency-management' // 스프링 부트 의존성 버전 관리를 위해 추가
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// 스프링 부트 버전을 루트 프로젝트로부터 가져오기 위해 추가
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.1"
+    }
+}
+
+dependencies {
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // ✅ 공통 보안 필터, SecurityContext, Authentication 객체
+    api 'org.springframework.boot:spring-boot-starter-security'
+
+    // ✅ JWT (공통 토큰 유틸)
+    api 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // ✅ 공통 DTO 검증 (@Valid, @NotNull 등)
+    api 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ✅ Servlet API (JwtAuthenticationFilter가 OncePerRequestFilter 사용)
+    api 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+}
