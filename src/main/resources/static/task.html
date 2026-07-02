@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>새 업무 생성</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .container { max-width: 600px; margin: auto; }
+        .form-group { margin-bottom: 1em; }
+        label { display: block; margin-bottom: 0.5em; }
+        input, textarea, select { width: 100%; padding: 0.5em; box-sizing: border-box; }
+        button { padding: 0.7em 1.5em; cursor: pointer; }
+        #result { margin-top: 1em; padding: 1em; border-radius: 5px; }
+        .success { background-color: #e7f4e7; border: 1px solid #4caf50; }
+        .error { background-color: #fce8e8; border: 1px solid #f44336; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>새 업무 생성</h1>
+    <form id="task-form">
+        <div class="form-group">
+            <label for="title">제목</label>
+            <input type="text" id="title" name="title" required>
+        </div>
+        <div class="form-group">
+            <label for="description">설명</label>
+            <textarea id="description" name="description" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="assigneeId">담당자 ID</label>
+            <input type="number" id="assigneeId" name="assigneeId">
+        </div>
+        <div class="form-group">
+            <label for="dueDate">마감일</label>
+            <input type="datetime-local" id="dueDate" name="dueDate">
+        </div>
+        <div class="form-group">
+            <label for="priority">우선순위</label>
+            <select id="priority" name="priority">
+                <option value="LOW">낮음</option>
+                <option value="MEDIUM" selected>보통</option>
+                <option value="HIGH">높음</option>
+                <option value="URGENT">긴급</option>
+            </select>
+        </div>
+        <button type="submit">업무 생성</button>
+    </form>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    document.getElementById('task-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const resultDiv = document.getElementById('result');
+
+        const data = {
+            title: form.title.value,
+            description: form.description.value,
+            assigneeId: form.assigneeId.value ? parseInt(form.assigneeId.value, 10) : null,
+            dueDate: form.dueDate.value ? new Date(form.dueDate.value).toISOString() : null,
+            priority: form.priority.value
+        };
+
+        // 브라우저가 자동으로 HttpOnly 쿠키를 보내주므로,
+        // 자바스크립트에서는 헤더 설정 없이 fetch 요청만 보내면 됩니다.
+        fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+                // 'Authorization' 헤더가 더 이상 필요 없습니다.
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (response.status === 401) {
+                 throw new Error('인증 오류가 발생했습니다. 로그인 후 다시 시도해주세요.');
+            }
+            if (!response.ok) {
+                return response.json().then(err => { 
+                    throw new Error(err.message || '업무 생성에 실패했습니다.');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Success:', data);
+            resultDiv.className = 'success';
+            resultDiv.innerHTML = `<strong>성공!</strong> 업무가 생성되었습니다. (ID: ${data.id})<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            form.reset();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.className = 'error';
+            resultDiv.textContent = '오류: ' + error.message;
+        });
+    });
+</script>
+
+</body>
+</html>

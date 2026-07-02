@@ -1,0 +1,41 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+    id 'java'
+}
+
+dependencies {
+    // Web (기본)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // WebSocket + STOMP
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Redis (Streams 포함)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // JPA (멱등 테이블 processed_event 저장)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // MySQL Driver
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // JSON (ObjectMapper)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    // Validation (선택: DTO 검증 필요하면)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    // (선택) WebSocket 테스트 도구
+    testImplementation 'org.springframework:spring-messaging'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

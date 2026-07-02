@@ -1,0 +1,45 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+    id 'java'
+}
+
+dependencies {
+    // ✅ 기본 웹 + WebSocket
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // ✅ Security (JWT 검증용)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // ✅ JPA + MySQL (채팅 메시지 영속화)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // ✅ Redis (채팅 캐시, Pub/Sub 등)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // ✅ 공통 JWT/보안 모듈
+    implementation project(':memo-common-security')
+
+    // ✅ Validation (DTO 검증)
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ✅ 테스트
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // @DataJpaTest를 위한 H2 인메모리 데이터베이스
+    testImplementation 'com.h2database:h2'
+
+    // Lombok 라이브러리
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+
+
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
