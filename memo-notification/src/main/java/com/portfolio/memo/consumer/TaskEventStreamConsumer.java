@@ -3,6 +3,8 @@ package com.portfolio.memo.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portfolio.memo.NotificationDispatcher;
 import com.portfolio.memo.config.NotificationStreamProperties;
+import com.portfolio.memo.domain.Notification;
+import com.portfolio.memo.domain.NotificationRepository;
 import com.portfolio.memo.domain.ProcessedEvent;
 import com.portfolio.memo.domain.ProcessedEventRepository;
 import com.portfolio.memo.dto.TaskNotificationEvent;
@@ -33,6 +35,7 @@ public class TaskEventStreamConsumer {
     private final ObjectMapper objectMapper;
     private final NotificationStreamProperties props;
     private final ProcessedEventRepository processedEventRepository;
+    private final NotificationRepository notificationRepository;
     private final NotificationDispatcher dispatcher;
 
     @PostConstruct
@@ -146,6 +149,10 @@ public class TaskEventStreamConsumer {
         }
 
         for (Long userId : recipients) {
+            // 2-1. 오프라인 사용자를 위한 영속화: 접속 여부와 무관하게 항상 먼저 저장
+            notificationRepository.save(Notification.of(userId, event));
+
+            // 2-2. 온라인이면 실시간 push (best-effort. 실패해도 위 영속화는 이미 커밋 대상)
             dispatcher.dispatchToUser(userId, event);
         }
 
