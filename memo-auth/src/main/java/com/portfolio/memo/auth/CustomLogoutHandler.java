@@ -1,5 +1,6 @@
 package com.portfolio.memo.auth;
 
+import com.portfolio.memo.common.jwt.CustomUserPrincipal;
 import com.portfolio.memo.common.jwt.JwtTokenProvider;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.Cookie;
@@ -7,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -25,22 +27,31 @@ public class CustomLogoutHandler implements LogoutHandler {
     private final RedisTemplate<String, String> jwtRedisTemplate;
     private final JwtTokenProvider jwtTokenProvider;
 
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+
     @Override
     public void logout(HttpServletRequest request,
                        HttpServletResponse response,
                        Authentication authentication) {
 
 
-        // 클라이언트의 쿠키 삭제
+        // 클라이언트의 쿠키 삭제 (로그인 시 발급한 쿠키와 속성이 같아야 브라우저가 확실히 덮어씀)
         ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", "")
                 .maxAge(0)
                 .path("/")
+                .httpOnly(true)
+                .sameSite("Lax")
+                .secure(cookieSecure)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
 
         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", "")
                 .maxAge(0)
                 .path("/")
+                .httpOnly(true)
+                .sameSite("Lax")
+                .secure(cookieSecure)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
@@ -48,9 +59,8 @@ public class CustomLogoutHandler implements LogoutHandler {
         Long userId = null;
 
         // 1순위. SecurityContext 조회 (없으면 2순위 쿠키 토큰에서 조회)
-        if (authentication != null && authentication.getPrincipal() instanceof Long) {
-            userId = (Long) authentication.getPrincipal();
-
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
+            userId = principal.getUserId();
         }
 
         // 2순위. 쿠키에서 직접 추출

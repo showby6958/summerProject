@@ -3,7 +3,9 @@ package com.portfolio.memo.auth;
 import com.portfolio.memo.auth.dto.JwtToken;
 import com.portfolio.memo.auth.dto.LoginRequest;
 import com.portfolio.memo.auth.dto.RegisterRequest;
+import com.portfolio.memo.auth.dto.UserSummaryResponse;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -11,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -25,14 +29,18 @@ public class AuthController {
     @Value("${jwt.refresh-token-validity-seconds}")
     private Long refreshTokenValiditySeconds;
 
+    // 운영(HTTPS)에서는 true로 설정해야 함 (로컬 http 환경에서는 true면 쿠키가 전송되지 않음)
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body("회원가입이 완료되었습니다.");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
         // 1. AuthService에서 로그인 처리 후 토큰 받아오기
         JwtToken token = authService.login(request);
 
@@ -43,7 +51,7 @@ public class AuthController {
                 .path("/")
                 .httpOnly(true)
                 .sameSite("Lax")
-//                .secure(true) // HTTPS 환경에서만 전송
+                .secure(cookieSecure) // 운영(HTTPS)에서는 cookie.secure=true로 설정
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
 
@@ -53,7 +61,7 @@ public class AuthController {
                 .path("/")
                 .httpOnly(true)
                 .sameSite("Lax")
-//                .secure(true) // HTTPS 환경에서만 전송
+                .secure(cookieSecure) // 운영(HTTPS)에서는 cookie.secure=true로 설정
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
@@ -77,6 +85,12 @@ public class AuthController {
         String username = authService.getUsernameById(userId);
 
         return ResponseEntity.ok(username);
+    }
+
+    // 여러 사용자 존재 여부/이름 배치 조회 API (호출하는 쪽의 N+1 blocking 호출 방지용)
+    @PostMapping("users/batch")
+    public ResponseEntity<List<UserSummaryResponse>> getUsersByIds(@RequestBody List<Long> userIds) {
+        return ResponseEntity.ok(authService.getUsersByIds(userIds));
     }
 
 }

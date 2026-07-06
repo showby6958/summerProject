@@ -21,6 +21,7 @@ public class AuthSecurityConfig {
 
     private final CustomLogoutHandler customLogoutHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalApiKeyFilter internalApiKeyFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -55,9 +56,12 @@ public class AuthSecurityConfig {
                                 "/api/auth/logout",
                                 "/login.html",
                                 "/register.html",
-                                "/main.html"
+                                "/main.html",
+                                // 다른 서비스(memo-task 등)가 유저 JWT 없이 호출하는 서비스 간 조회 API
+                                "/api/auth/users/**"
                         ).permitAll()
 
+                        // 아직 /api/admin/** 컨트롤러는 없지만, UserRole.ADMIN을 쓰는 향후 관리자 API를 위해 미리 예약해 둠
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -65,6 +69,10 @@ public class AuthSecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterBefore(
+                        internalApiKeyFilter,
+                        JwtAuthenticationFilter.class
                 );
 
         return http.build();

@@ -3,8 +3,10 @@ package com.portfolio.memo.auth;
 import com.portfolio.memo.auth.dto.JwtToken;
 import com.portfolio.memo.auth.dto.LoginRequest;
 import com.portfolio.memo.auth.dto.RegisterRequest;
+import com.portfolio.memo.auth.dto.UserSummaryResponse;
 import com.portfolio.memo.common.jwt.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -58,7 +61,13 @@ public class AuthService {
                 .role(UserRole.USER)
                 .build();
 
-        userRepository.save(user);
+        try {
+            // saveAndFlush로 즉시 INSERT를 실행해, 동시 가입 요청으로 인한 unique 제약 위반을
+            // 트랜잭션 커밋 시점이 아니라 여기서 바로 잡아낸다.
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+        }
     }
 
     @Transactional
@@ -116,5 +125,12 @@ public class AuthService {
         return userRepository.findById(userId)
                 .map(User::getName)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    // 다른 서비스에서 여러 유저를 한 번에 조회 (N+1 blocking 호출 방지용 배치 조회)
+    public List<UserSummaryResponse> getUsersByIds(List<Long> userIds) {
+        return userRepository.findAllById(userIds).stream()
+                .map(UserSummaryResponse::from)
+                .toList();
     }
 }
