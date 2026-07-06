@@ -4,6 +4,7 @@ import com.portfolio.memo.client.dto.UserSummaryDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -27,7 +28,9 @@ public class AuthClient {
                 .uri("/api/auth/users/{userId}/name", userId)
                 .retrieve()
                 .bodyToMono(String.class)
-                .onErrorReturn(null) // 존재하지 않는 유저 등으로 조회 실패 시 이름 없이 진행
+                // onErrorReturn(null)은 fallback 값으로 null을 허용하지 않아 항상 NPE가 발생함.
+                // onErrorResume으로 빈 Mono를 반환하면 block()이 정상적으로 null을 돌려준다.
+                .onErrorResume(ex -> Mono.empty())
                 .block();
     }
 
