@@ -1,0 +1,33 @@
+jwt:
+  secret: dmVyeWltcG9ydGFudHNlY3JldGNvZGUnfbewdkyWbbhdvbVBVDW
+  access-token-validity-ms: 1800000
+  refresh-token-validity-ms: 1209600000
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop # 테스트마다 스키마 재생성
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    defer-datasource-initialization: true # data.sql, schema.sql 로딩 지연
+  sql:
+    init:
+      mode: always # 테스트 시마다 스크립트 실행
+
+  redis:
+    chat:
+      host: localhost
+      port: 6380
+      password: wlsgh1236
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace # Hibernate가 SQL 파라미터를 어떻게 바인딩하는지 확인
