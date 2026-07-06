@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>채팅 테스트</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f0f2f5; }
+        .container { max-width: 700px; margin: auto; }
+        .box { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .form-group { margin-bottom: 1em; }
+        label { display: block; margin-bottom: 0.4em; font-size: 0.9em; color: #555; }
+        input { width: 100%; padding: 0.5em; box-sizing: border-box; }
+        button { padding: 0.7em 1.5em; cursor: pointer; margin-top: 0.5em; margin-right: 0.5em; }
+        #log { margin-top: 1em; border: 1px solid #ccc; padding: 10px; height: 260px; overflow-y: scroll; background: #f9f9f9; border-radius: 6px; }
+        #log p { margin: 4px 0; }
+        .error { color: #c0392b; }
+        a.back { display: inline-block; margin-bottom: 1em; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <a class="back" href="http://localhost:8081/main.html">← 허브로 돌아가기</a>
+    <h1>채팅 테스트</h1>
+    <p>로그인 쿠키를 그대로 사용합니다. 먼저 <a href="http://localhost:8081/login.html">로그인</a>이 되어 있어야 합니다.</p>
+
+    <div class="box">
+        <h2>채팅방 생성</h2>
+        <div class="form-group">
+            <label for="roomName">방 이름</label>
+            <input type="text" id="roomName" placeholder="예: 테스트방">
+        </div>
+        <div class="form-group">
+            <label for="participantIds">참여자 userId (쉼표로 구분, 선택)</label>
+            <input type="text" id="participantIds" placeholder="예: 2,3">
+        </div>
+        <button id="create-room-btn">방 생성</button>
+        <div id="create-room-result"></div>
+    </div>
+
+    <div class="box">
+        <h2>실시간 메시지</h2>
+        <div class="form-group">
+            <label for="roomId">방 ID</label>
+            <input type="number" id="roomId" placeholder="위에서 생성한 방 ID 입력">
+        </div>
+        <button id="connect-btn">연결</button>
+        <button id="disconnect-btn" disabled>연결 해제</button>
+
+        <div class="form-group" style="margin-top: 1em;">
+            <label for="message">메시지</label>
+            <input type="text" id="message" placeholder="보낼 메시지">
+        </div>
+        <button id="send-btn" disabled>전송</button>
+
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function log(text) {
+        const logDiv = document.getElementById('log');
+        const p = document.createElement('p');
+        p.textContent = text;
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    document.getElementById('create-room-btn').addEventListener('click', async () => {
+        const resultDiv = document.getElementById('create-room-result');
+        const roomName = document.getElementById('roomName').value.trim();
+        const idsRaw = document.getElementById('participantIds').value.trim();
+        const participantUserIds = idsRaw
+            ? idsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+            : [];
+
+        try {
+            const response = await fetch('/api/chat/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomName, participantUserIds })
+            });
+
+            if (response.status === 401) {
+                throw new Error('인증되지 않았습니다. 먼저 로그인하세요.');
+            }
+            if (!response.ok) {
+                throw new Error(`방 생성 실패 (${response.status})`);
+            }
+
+            const data = await response.json();
+            resultDiv.innerHTML = `<p>방이 생성되었습니다. (roomId: ${data.roomId})</p>`;
+            document.getElementById('roomId').value = data.roomId;
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">오류: ${error.message}</p>`;
+        }
+    });
+
+    document.getElementById('connect-btn').addEventListener('click', () => {
+        const roomId = document.getElementById('roomId').value;
+        if (!roomId) {
+            alert('방 ID를 입력하세요.');
+            return;
+        }
+
+        const socket = new SockJS('/ws-chat');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, (frame) => {
+            log('연결됨: ' + frame);
+            document.getElementById('connect-btn').disabled = true;
+            document.getElementById('disconnect-btn').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+
+            stompClient.subscribe(`/topic/chat/rooms/${roomId}`, (message) => {
+                const body = JSON.parse(message.body);
+                log(`수신: ${JSON.stringify(body)}`);
+            });
+        }, (error) => {
+            log('연결 오류: ' + error);
+        });
+    });
+
+    document.getElementById('disconnect-btn').addEventListener('click', () => {
+        if (stompClient !== null) {
+            stompClient.disconnect(() => {
+                log('연결 해제됨');
+                document.getElementById('connect-btn').disabled = false;
+                document.getElementById('disconnect-btn').disabled = true;
+                document.getElementById('send-btn').disabled = true;
+            });
+        }
+    });
+
+    document.getElementById('send-btn').addEventListener('click', async () => {
+        const roomId = document.getElementById('roomId').value;
+        const content = document.getElementById('message').value.trim();
+        if (!content) return;
+
+        try {
+            const response = await fetch(`/api/chat/rooms/${roomId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+
+            if (!response.ok) {
+                throw new Error(`전송 실패 (${response.status})`);
+            }
+
+            document.getElementById('message').value = '';
+        } catch (error) {
+            log('오류: ' + error.message);
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>알림 테스트</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f0f2f5; }
+        .container { max-width: 700px; margin: auto; }
+        .box { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        button { padding: 0.7em 1.5em; cursor: pointer; margin-top: 0.5em; }
+        #log { margin-top: 1em; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #f9f9f9; border-radius: 6px; }
+        #log p { margin: 4px 0; }
+        .error { color: #c0392b; }
+        a.back { display: inline-block; margin-bottom: 1em; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <a class="back" href="http://localhost:8081/main.html">← 허브로 돌아가기</a>
+    <h1>알림 테스트</h1>
+    <p>
+        로그인 쿠키를 그대로 사용합니다. 먼저 <a href="http://localhost:8081/login.html">로그인</a>하세요.<br>
+        연결 후 <a href="http://localhost:8082/task.html">업무 생성 페이지</a>에서 업무를 하나 생성하면
+        (본인이 자동으로 담당자가 되므로) 이 페이지에 알림이 실시간으로 도착합니다.
+    </p>
+
+    <div class="box">
+        <button id="connect-btn">연결</button>
+        <button id="disconnect-btn" disabled>연결 해제</button>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function log(text) {
+        const logDiv = document.getElementById('log');
+        const p = document.createElement('p');
+        p.textContent = text;
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    document.getElementById('connect-btn').addEventListener('click', () => {
+        const socket = new WebSocket('ws://' + window.location.host + '/ws-notification');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, (frame) => {
+            log('연결됨: ' + frame);
+            document.getElementById('connect-btn').disabled = true;
+            document.getElementById('disconnect-btn').disabled = false;
+
+            stompClient.subscribe('/user/queue/notifications', (message) => {
+                const body = JSON.parse(message.body);
+                log('알림 수신: ' + JSON.stringify(body));
+            });
+        }, (error) => {
+            log('연결 오류: ' + error);
+        });
+    });
+
+    document.getElementById('disconnect-btn').addEventListener('click', () => {
+        if (stompClient !== null) {
+            stompClient.disconnect(() => {
+                log('연결 해제됨');
+                document.getElementById('connect-btn').disabled = false;
+                document.getElementById('disconnect-btn').disabled = true;
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

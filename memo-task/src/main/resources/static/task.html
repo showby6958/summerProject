@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>업무 테스트</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f0f2f5; }
+        .container { max-width: 700px; margin: auto; }
+        .box { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .form-group { margin-bottom: 1em; }
+        label { display: block; margin-bottom: 0.4em; font-size: 0.9em; color: #555; }
+        input, textarea, select { width: 100%; padding: 0.5em; box-sizing: border-box; }
+        button { padding: 0.7em 1.5em; cursor: pointer; margin-top: 0.5em; }
+        #create-result, #search-result { margin-top: 1em; }
+        .task-item { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+        .task-item h3 { margin: 0 0 6px; }
+        .error { color: #c0392b; }
+        a.back { display: inline-block; margin-bottom: 1em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a class="back" href="http://localhost:8081/main.html">← 허브로 돌아가기</a>
+    <h1>업무 테스트</h1>
+
+    <div class="box">
+        <h2>새 업무 생성</h2>
+        <form id="task-form">
+            <div class="form-group">
+                <label for="title">제목</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label for="description">설명</label>
+                <textarea id="description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="memberIds">팀원 userId (쉼표로 구분, 선택)</label>
+                <input type="text" id="memberIds" placeholder="예: 2,3">
+            </div>
+            <div class="form-group">
+                <label for="dueDate">마감일</label>
+                <input type="datetime-local" id="dueDate">
+            </div>
+            <div class="form-group">
+                <label for="priority">우선순위</label>
+                <select id="priority">
+                    <option value="LOW">낮음</option>
+                    <option value="MEDIUM" selected>보통</option>
+                    <option value="HIGH">높음</option>
+                    <option value="URGENT">긴급</option>
+                </select>
+            </div>
+            <button type="submit">업무 생성</button>
+        </form>
+        <div id="create-result"></div>
+    </div>
+
+    <div class="box">
+        <h2>업무 조회</h2>
+        <label>
+            <input type="checkbox" id="myTask"> 내 업무만 보기
+        </label>
+        <button id="search-btn">조회</button>
+        <div id="search-result"></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('task-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const resultDiv = document.getElementById('create-result');
+
+        const memberIdsRaw = document.getElementById('memberIds').value.trim();
+        const memberIds = memberIdsRaw
+            ? memberIdsRaw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+            : [];
+
+        const taskCreateRequest = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            memberIds: memberIds,
+            priority: document.getElementById('priority').value,
+            dueDate: document.getElementById('dueDate').value
+                ? new Date(document.getElementById('dueDate').value).toISOString()
+                : null
+        };
+
+        const formData = new FormData();
+        formData.append('taskCreateRequest', new Blob([JSON.stringify(taskCreateRequest)], { type: 'application/json' }));
+
+        try {
+            const response = await fetch('/api/tasks/create', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.status === 401) {
+                throw new Error('인증되지 않았습니다. 먼저 로그인하세요 (http://localhost:8081/login.html)');
+            }
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || `업무 생성 실패 (${response.status})`);
+            }
+
+            const data = await response.json();
+            resultDiv.innerHTML = `<p>업무가 생성되었습니다. (ID: ${data.id})</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById('task-form').reset();
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">오류: ${error.message}</p>`;
+        }
+    });
+
+    document.getElementById('search-btn').addEventListener('click', async () => {
+        const resultDiv = document.getElementById('search-result');
+        const myTask = document.getElementById('myTask').checked;
+
+        try {
+            const response = await fetch(`/api/tasks/search?myTask=${myTask}`);
+
+            if (response.status === 401) {
+                throw new Error('인증되지 않았습니다. 먼저 로그인하세요 (http://localhost:8081/login.html)');
+            }
+            if (!response.ok) {
+                throw new Error(`조회 실패 (${response.status})`);
+            }
+
+            const tasks = await response.json();
+            if (tasks.length === 0) {
+                resultDiv.innerHTML = '<p>업무가 없습니다.</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = tasks.map(t => `
+                <div class="task-item">
+                    <h3>[${t.id}] ${t.title} (${t.status} / ${t.priority})</h3>
+                    <p>${t.description ?? ''}</p>
+                    <p>담당자: ${t.assigneeName ?? '-'} | 팀원: ${(t.memberNames || []).join(', ') || '-'}</p>
+                    <p>마감일: ${t.dueDate ?? '-'}</p>
+                </div>
+            `).join('');
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="error">오류: ${error.message}</p>`;
+        }
+    });
+</script>
+
+</body>
+</html>
