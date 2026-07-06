@@ -1,0 +1,57 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: memo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: wlsgh1236
+      MYSQL_USER: wkdwlsgh9622
+      MYSQL_PASSWORD: wlsgh1236
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pwlsgh1236"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # memo-auth 의 JWT Refresh Token 저장용 Redis (application.yml: spring.redis.jwt, port 6379)
+  redis-jwt:
+    image: redis:7-alpine
+    container_name: memo-redis-jwt
+    restart: unless-stopped
+    command: redis-server --requirepass wlsgh1236
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_jwt_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "wlsgh1236", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # memo-chat / memo-task 의 채팅·Stream 처리용 Redis (application.yml: spring.redis.chat, port 6380)
+  redis-chat:
+    image: redis:7-alpine
+    container_name: memo-redis-chat
+    restart: unless-stopped
+    command: redis-server --requirepass wlsgh1236
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_chat_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "wlsgh1236", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  redis_jwt_data:
+  redis_chat_data:
