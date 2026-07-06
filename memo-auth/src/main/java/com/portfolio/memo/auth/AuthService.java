@@ -89,8 +89,8 @@ public class AuthService {
         // 3. 공통 JwtTokenProvider로 Access/Refresh 토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getId(),
-                user.getName(),
                 user.getEmail(),
+                user.getName(),
                 user.getRole().name()
         );
         String refreshToken = jwtTokenProvider.createRefreshToken(
