@@ -11,6 +11,12 @@ dependencies {
     // WebSocket + STOMP
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
+    // Security (JWT 검증용, WebSocket handshake 인증)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // 공통 JWT / Security 모듈
+    implementation project(':memo-common-security')
+
     // Redis (Streams 포함)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
