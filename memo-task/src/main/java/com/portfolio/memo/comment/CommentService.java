@@ -4,6 +4,7 @@ import com.portfolio.memo.comment.dto.CommentCreateRequest;
 import com.portfolio.memo.comment.dto.CommentDto;
 import com.portfolio.memo.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.Task;
+import com.portfolio.memo.TaskAccessValidator;
 import com.portfolio.memo.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -18,13 +19,16 @@ public class CommentService {
 
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
+    private final TaskAccessValidator taskAccessValidator;
 
     @Transactional
     public CommentDto createComment(Long taskId, CommentCreateRequest request, Long userId, String userName) {
 
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException(taskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
 
+        // 담당자/팀원만 댓글 작성 가능
+        taskAccessValidator.validateParticipant(task, userId);
 
         Comment comment = Comment.builder()
                 .content(request.getContent())
@@ -51,7 +55,7 @@ public class CommentService {
     public void deleteComment(Long commentId, Long userId) {
 
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new ResourceNotFoundException(commentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Comment", commentId));
 
         boolean isAuthor = comment.getUserId().equals(userId);
 

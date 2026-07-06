@@ -48,6 +48,7 @@ public class Task {
     @ElementCollection
     @CollectionTable(name = "task_members_names", joinColumns = @JoinColumn(name = "task_id"))
     @Column(name = "member_name")
+    @Builder.Default
     private List<String> memberNames = new ArrayList<>();
 
     // 업무 처리 상태 (TODO/IN_PROGRESS/DONE)
@@ -96,7 +97,9 @@ public class Task {
             TaskPriority priority,
             LocalDateTime dueDate,
             Long newAssigneeId,
-            List<Long> newMemberIds
+            String newAssigneeName,
+            List<Long> newMemberIds,
+            List<String> newMemberNames
     ) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
@@ -106,10 +109,12 @@ public class Task {
 
         if (newAssigneeId != null) {
             this.assigneeId = newAssigneeId;
+            this.assigneeName = newAssigneeName;
         }
 
         if (newMemberIds != null) {
             this.memberIds = newMemberIds;
+            this.memberNames = newMemberNames;
         }
 
         this.updatedAt = LocalDateTime.now();

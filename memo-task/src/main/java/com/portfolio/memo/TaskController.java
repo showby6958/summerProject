@@ -93,27 +93,33 @@ public class TaskController {
 
 
     // 업무 조회용 (1: 업무 기본 상세 조회, 2: 업무 첨부파일 조회, 3: 업무 댓글 조회)
+    // 담당자/팀원만 조회 가능 (그 외 인증된 사용자는 접근 차단)
     // 1. 업무 기본 상세 조회
     @GetMapping("/{taskId}")
     public ResponseEntity<TaskDetailResponse> getTaskDetail(
-            @PathVariable Long taskId) {
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserPrincipal currentUser) {
 
-        return ResponseEntity.ok(taskService.getTaskDetail(taskId));
+        return ResponseEntity.ok(taskService.getTaskDetail(taskId, currentUser.getUserId()));
     }
 
     // 2. 업무 첨부파일 조회
     @GetMapping("/{taskId}/files")
     public ResponseEntity<List<AttachedFileDownloadDto>> getTaskFiles(
-            @PathVariable Long taskId) {
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserPrincipal currentUser) {
 
+        taskService.validateTaskAccess(taskId, currentUser.getUserId());
         return ResponseEntity.ok(attachedFileService.getTaskFiles(taskId));
     }
 
     // 3. 업무 댓글 조회
     @GetMapping("/{taskId}/comments")
     public ResponseEntity<List<CommentDto>> getTaskComments(
-            @PathVariable Long taskId) {
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal CustomUserPrincipal currentUser) {
 
+        taskService.validateTaskAccess(taskId, currentUser.getUserId());
         return ResponseEntity.ok(commentService.getTaskComment(taskId));
     }
 

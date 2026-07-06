@@ -3,7 +3,9 @@ package com.portfolio.memo.file;
 import com.portfolio.memo.file.dto.AttachedFileDownloadDto;
 import com.portfolio.memo.CustomException.ResourceNotFoundException;
 import com.portfolio.memo.Task;
+import com.portfolio.memo.TaskAccessValidator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +18,13 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AttachedFileService {
 
     private final AttachedFileRepository attachedFileRepository;
+    private final TaskAccessValidator taskAccessValidator;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -73,20 +77,24 @@ public class AttachedFileService {
         }
     }
 
-    // 파일 다운로드 DTO 조회
+    // 파일 다운로드 DTO 조회 (담당자/팀원만 가능)
     @Transactional(readOnly = true)
-    public AttachedFileDownloadDto getDownloadInfo(Long fileId) {
+    public AttachedFileDownloadDto getDownloadInfo(Long fileId, Long currentUserId) {
         AttachedFile file = attachedFileRepository.findById(fileId)
-                .orElseThrow(() -> new ResourceNotFoundException(fileId));
+                .orElseThrow(() -> new ResourceNotFoundException("AttachedFile", fileId));
+
+        taskAccessValidator.validateParticipant(file.getTask(), currentUserId);
 
         return AttachedFileDownloadDto.from(file);
     }
 
-    // 실제 파일데이터를 byte[] 로 읽기
+    // 실제 파일데이터를 byte[] 로 읽기 (담당자/팀원만 가능)
     @Transactional(readOnly = true)
-    public byte[] loadFile(Long fileId) {
+    public byte[] loadFile(Long fileId, Long currentUserId) {
         AttachedFile file = attachedFileRepository.findById(fileId)
-                .orElseThrow(() -> new ResourceNotFoundException(fileId));
+                .orElseThrow(() -> new ResourceNotFoundException("AttachedFile", fileId));
+
+        taskAccessValidator.validateParticipant(file.getTask(), currentUserId);
 
         Path filePath = Paths.get(uploadDir).resolve(file.getStoredFileName()).toAbsolutePath();
 
@@ -103,5 +111,18 @@ public class AttachedFileService {
                 .stream()
                 .map(AttachedFileDownloadDto::from)
                 .toList();
+    }
+
+    // Task 삭제 시 DB row는 cascade로 지워지지만, 디스크의 실제 파일은 별도로 정리해야 함
+    public void deleteFilesFromDisk(List<AttachedFile> files) {
+        for (AttachedFile file : files) {
+            Path filePath = Paths.get(uploadDir).resolve(file.getStoredFileName()).toAbsolutePath();
+            try {
+                Files.deleteIfExists(filePath);
+            } catch (IOException e) {
+                // 디스크 정리 실패가 업무 삭제 자체를 막으면 안 되므로 로그만 남기고 계속 진행
+                log.warn("Failed to delete file from disk: {}", filePath, e);
+            }
+        }
     }
 }
